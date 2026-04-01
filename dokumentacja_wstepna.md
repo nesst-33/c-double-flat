@@ -82,36 +82,67 @@ liczba_niemut += 1 # BŁĄD
 ### Konwersje typów podstawowych
 #### Niejawne
 - Jako, że język ma być słabo typowany konieczne jest wykorzystanie rozbudowanego systemu niejawnych konwersji typów
-- W każdym działaniu, gdzie występuje zmienna `int` i `flp`, `int` będzie konwertowane do `flp`, aby zminimalizować utratę danych
-	- tzn. np. zarówno `4.5 + 4`, jak i `4 + 4.5` da nam wynik 8.5
+
+##### Operatory arytmetyczne (+, -, /, \*, %)
+- Poniższa tabela opisuje, do jakiego typu zostaną zrzutowane argumenty działań z ww. operatorami (gdzie wiersze to typy pierwszego argumentu, a kolumny drugiego):
+
+|          | int         | flp | str         | bool        |
+| -------- | ----------- | --- | ----------- | ----------- |
+| **int**  | int         | flp | int/flp(\*) | int         |
+| **flp**  | flp         | flp | flp         | flp         |
+| **str**  | int/flp(\*) | flp | int/flp(\*) | int/flp(\*) |
+| **bool** | int         | flp | int         | int         |
+
+- Na ogół staramy się zachować jak największą ilość danych w działaniu:
+	- Z tego powodu faworyzujemy typ `flp` - tzn. zarówno `4.5 + 4`, jak i `4 + 4.5` da nam wynik `8.`
 	- *zapisanie tego wyniku do zmiennej typu `int` będzie jednak skutkowało obcięciem miejsca dziesiętnego*
- - Konwersja w przypadku operacji zmiennych typu `str` ze zmiennymi innego typu zależy od działania:
-	 - W przypadku konkatenacji wszystkie zmienne nie będące typu `str` zostaną na niego zamienione
-		 - tzn. np. `"Ala ma " ~ 23 ~ .5 ~ "roku: " ~ true` da nam wynik `"Ala ma 23.5 roku: true"`
-	- W przypadku operacji na danych liczbowych `str` będzie konwertowane na `int` lub `flp` w zależności od zapisu:
-		- `"3" + 3 = 6`
-		- `"3.0" + 3 = 6.`
-		- `"a" + 3` zwróci błąd
-- Zmienne typu `bool` będą tak naprawdę reprezentowane poprzez `int`:
+- Rzutowanie `str` jest szczególnym przypadkiem
+	- typ, do którego rzutujemy `str` zależy od jego wartości
+	- jeżeli wartość tekstowa reprezentuje liczbę całkowitą (np. `"434"`), to rzutujemy na `int`; jeżeli zmiennoprzecinkową (np. `".143"`), to rzutujemy na `flp`
+	- (\*) Aby `str` był rzutowany na wartość liczbową, musi zawierać tylko cyfry, separator dziesiętny, oraz ewentualnie apostrof
+		- `"43", "43.4", "434'000", ".14"` to przykłady `str` rzutowalnych
+		- próba rzutowania np. `"a"` na `int` zwróci błąd
+- Konwersje `bool <-> int/flp` będą zachodziły w następujący sposób:
 ```
-true = 1
-false = 0
+true -> 1
+false <-> 0
+
+0 -> false
+wszystko inne -> true
 ```
-- Konwersja z `bool` na `int` jest więc trywialna
-	- Jeżeli jednak chcemy użyć `flp` lub `int` jako wartości logicznej, zmienne o wartości 0 będą konwertowane na `false`, a każda inna na `true`
-	- Konwersja ze `str` na `bool` jest **zakazana**
+
+##### Operatory tekstowe (~, !, :, [])
+- Każdy typ podstawowy zostanie przekształcony na `str`
+
+##### Operatory logiczne (and, or, not)
+- Typy podstawowe będą przekształcane na `bool`:
+	- `flp -> bool`
+		- `0. -> false`
+		- `wszystko inne -> true`
+	- `int -> bool`
+		- `0 -> false`
+		- `wszystko inne -> true`
+	- `str -> bool`
+		- `"true" -> true`
+		- `"false" -> false`
+		- w przeciwnym przypadku błąd
 #### Jawne
 - Gdyby konwersje niejawne były niewystarczające/prowadziły do sytuacji nieprzewidzianych przez programistę, dostępna jest również jawna konwersja typów zmiennych
-- Wykorzystuje ona mechanizm podobny do języka C - aby przekonwertować typ wartości, należy otoczyć go nawiasami i umieścić przed nimi typ docelowy
 - Np:
 ```
-int(3.5) -> 3
-flp(3) -> 3.
-str(543) -> "543"
-
-543 as str
+3.5 as int # -> 3
+3 as flp   # -> 3.
+543 as str # -> "543"
+true as str # -> "true"
 ```
-- *Uwaga: obowiązują wszystkie zakazy wymienione w sekcji konwersji niejawnych - konwersje nie mające logicznego sensu będą odrzucane*
+- *Uwaga: obowiązują wszystkie zakazy wymienione w sekcji konwersji niejawnych - konwersje nie mające logicznego sensu będą odrzucane (obecnie są to tylko niepoprawne konwersje stringów)*
+	- np:
+```
+Błędne kownersje:
+"1" as bool
+"asdf" as int
+"def" as flp
+```
 
 ---
 ## Operacje
@@ -121,10 +152,9 @@ str(543) -> "543"
 	- odejmowanie (-)
 	- mnożenie (\*)
 	- dzielenie (/)
-	- potęgowanie (^)
 	- modulo (%)
-	- oraz połączenie wszystkich powyższych ze znakiem = w celu manipulacją zmienną "wsadowo":
-		- +=, -=, \*=, /=, ^=, %=
+	- oraz połączenie wszystkich powyższych ze znakiem =:
+		- +=, -=, \*=, /=, %=
 
 ### Operacje logiczne
 -  Przyjmują zmienne typu `bool`:
@@ -147,28 +177,39 @@ a >= b
 	- konkatenacja (~)
 		- np. "Ala " ~ "ma kota"
 		- dostępny również w postaci operatora przypisania `~=`
-	- mnożenie (\*)
-		- powtarza wartość tekstową określoną ilość razy: `"ala " * 3 # = "ala ala ala "`
-	-  `.capitalize() / .upper() / .lower()` - metody odpowiednio zmieniające wielkość liter
-	- `.split()` - metoda inspirowana Pythonem. Wywołana na `string`'u zwraca tablicę stringów podzielonych według podanego znaku oddzielającego
-		- przykładowo: 
-```
-'1i2i3'.split('i') -> ['1','2','3']
-```
+	- liczba liter (!)
+		- operator postfiksowy - zwraca liczbę liter
+		- `"123"! = 3`
+	- przecięcie (:)
+		-  przecina wartość tekstową w danym indeksie
+	```
+	str ala = "Ala ma kota"	
+	str kota = ala : 4 # kota = "ma kota"; ala = "Ala "
+	```
+	- indeksowanie ([]) 
+		- dozwolony jest dostęp do poszczególnych liter wartości tekstowej
+		- jeśli zmienna jest mutowalna, można również zmieniać poszczególne litery
+	```
+	str ala = "Ala ma kota"
+	ala[2] = "e" # ala = "Ale ma kota"
+	ala[0] = "La" # BŁĄD
+	```
+
 ### Hierarchia Operatorów
 
-| Pierwszeństwo | Operator                                                                    | Opis                                                                                |
-| ------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| **1**         | (wyrażenie)                                                                 | Nawias                                                                              |
-| **2**         | typ(a)<br>a()<br>a[]<br>a!                                                  | Jawna konwersja typów<br>Wywołanie funkcji<br>Indeksowanie kolekcji<br>Moc kolekcji |
-| **3**         | +a / -a<br>not a<br>a ^ b                                                   | Unarny plus/minus<br>Negacja (logiczna)<br>Potęgowanie                              |
-| **4**         | a * b<br>a / b<br>a % b<br>a & b<br>a : b                                   | Mnożenie<br>Dzielenie<br>Modulo<br>Część wspólna kolekcji<br>Przecięcie kolekcji    |
-| **5**         | a + b<br>a - b<br>a ~ b                                                     | Dodawanie<br>Odejmowanie<br>Konkatenacja                                            |
-| **6**         | a < b<br>a > b<br>a <= b<br>a >= b                                          | Operatory relacyjne                                                                 |
-| **7**         | a == b<br>a != b                                                            | Operatory porównania                                                                |
-| **8**         | a and b                                                                     | Koniunkcja                                                                          |
-| **9**         | a or b                                                                      | Alternatywa                                                                         |
-| **10**        | a = b<br>a += b<br>a -= b<br>a *= b<br>a /= b<br>a ^= b<br>a %= b<br>a ~= b | Operatory przypisania                                                               |
+| Pierwszeństwo | Operator                                                          | Opis                                                                                                                                    |
+| ------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **1**         | (wyrażenie)                                                       | Nawias                                                                                                                                  |
+| **2**         | a as typ<br>a()<br>a[]<br>a!                                      | Jawna konwersja typów<br>Wywołanie funkcji<br>Indeksowanie<br>Moc kolekcji/liczba liter                                                 |
+| **3**         | +a / -a<br>not a                                                  | Unarny plus/minus<br>Negacja (logiczna)<br>                                                                                             |
+| **4**         | a * b<br>a / b<br>a % b                                           | Mnożenie<br>Dzielenie<br>Modulo<br>                                                                                                     |
+| **5**         | a + b<br>a - b                                                    | Dodawanie<br>Odejmowanie                                                                                                                |
+| **6**         | a ~ b<br>a & b<br>a : b<br>a << b<br>a >> b                       | Konkatenacja<br>Część wspólna kolekcji<br>Przecięcie kolekcji/stringa<br>Dodanie elementu do kolekcji<br>Ekstrakcja elementu z kolekcji |
+| **7**         | a < b<br>a > b<br>a <= b<br>a >= b                                | Operatory relacyjne                                                                                                                     |
+| **8**         | a == b<br>a != b                                                  | Operatory porównania                                                                                                                    |
+| **9**         | a and b                                                           | Koniunkcja                                                                                                                              |
+| **10**        | a or b                                                            | Alternatywa                                                                                                                             |
+| **11**        | a = b<br>a += b<br>a -= b<br>a *= b<br>a /= b<br>a %= b<br>a ~= b | Operatory przypisania                                                                                                                   |
 
 ## Instrukcje warunkowe/pętli
 - W celu uproszczenia implementacji projektu, okroję dostępne instrukcje warunkowe/pętli dostępne w innych popularnych językach do absolutnego minimum (choć nie wykluczam ich rozszerzenia w przyszłych iteracjach projektu)
@@ -198,6 +239,12 @@ const int add(int a, int b)
 int a = 3
 int b = 5
 const int c = add(a, b)
+
+void glob()
+{
+	a += 3
+	return
+}
 ```
 - Zmienne będą przekazywane poprzez **referencję**, na co trzeba szczególnie uważać!
 	- Dlatego też, póki co, nie przewiduję żadnego jawnego mechanizmu wskaźników lub referencji
@@ -205,6 +252,8 @@ const int c = add(a, b)
 	- Ograniczenie przekazywania literałów do przekazywania przez referencję wprowadziłoby spory problem implementacyjny. Jeżeli literał zostanie przekazany przez zwykłą referencję, zniknie po wejściu w funkcję. Jeżeli z kolei zmusimy użytkownika do przekazywania literałów w postaci parametrów `const`, wprowadza to komplikacje w pisaniu uniwersalnych funkcji 
 - Wynik będzie przekazywany przez **kopię**
 - Po wywołaniu `return` funkcja zwraca odpowiednie wyrażenie i kończy swoje działanie
+- Funkcja jest widoczna tylko w swoim zakresie
+- Przeciążanie funkcji jest zakazane (język jest słabo typowany - to rozwiązanie powinno wystarczyć)
 
 ---
 ## Kolekcje
@@ -221,19 +270,18 @@ arr int liczby # tworzy pustą tablicę
 arr str = ["abc", 4, 4.5] # tworzy kolekcję 3-elementową ["abc", "4", "4.5"]
 const arr coords = [3, 4] # tworzy niemutowalną kolekcję (podobnie do krotek w Pythonie)
 liczby = [1, 2, 3] # zmienia zawartość tablicy
+
+arr arr int = [[1, 2], [1, 2, 3]] # tworzenie tablic zagnieżdżonych
 ```
-- Zaznaczyć należy, że wartości zmiennych używanych do inicjalizacji (oraz dodawanych po inicjalizacji) będą **kopiowane**
-	- Takie rozwiązanie pozwala na uniknięcie problemów związanych z wiszącymi referencjami, które występowały by np. w następującym kawałku kodu:
+- Zaznaczyć należy, że wartości zmiennych używanych do inicjalizacji (oraz dodawanych po inicjalizacji) będą **przekazywane przez referencję**
+	- Takie rozwiązanie będzie powodowało problemy (co widać na przykład poniżej), ale jest to wymuszone specyfikacją zadania
 ```
-int main()
+arr str test
 {
-	arr str test
-	{
-		str elem = "asdf"
-		test = [elem]	
-	}
-	return 0
+	str elem = "asdf"
+	test = [elem]	
 }
+# test[0] = ?
 ```
 ### Adresacja
 - Wszystkie elementy kolekcji są indywidualnie adresowalne poprzez indeks (zaczynając od 0) 
@@ -245,6 +293,18 @@ liczby[0] = 7  # [7, 4, 5, 6]
 liczby[4] # BŁĄD
 ```
 ### Operatory
+- Dodawanie elementu (<<) - dodaje element na koniec kolekcji
+```
+arr int a = [1, 2]
+a << 3 # a = [1, 2, 3]
+```
+
+- Ekstrakcja elementu (>>) - usuwa element z kolekcji na danym indeksie i go zwraca
+```
+arr int a = [1, 2, 3]
+int b = a >> 2 # b = 3
+```
+
 - Konkatenacja (~) - skleja dwie kolekcje
 ```
 arr int a = [1, 2] ~ [3, 4]
@@ -254,6 +314,12 @@ arr int a = [1, 2] ~ [3, 4]
 ```
 arr int a = [1, 2, 1, 2, 3] - [1, 2]
 # a = [3]
+```
+
+- Przecięcie kolekcji (:) - wycina wszystkie elementy od wybranego indeksu i zwraca je jako kolekcja
+```
+arr int a = [1, 2, 3, 4]
+arr int b = a : 2        # a = [1, 2]; b = [3, 4]
 ```
 
 - Moc zbioru (a!) - zwraca liczbę elementów w zbiorze
@@ -285,41 +351,33 @@ arr int b = a[>3] # b = [4, 5, 6]
 arr int a = [3, 4, 5]
 arr int b = a[*3]    # b = [9, 12, 15]
 arr int c = a[>4][*2] # c = [10]
-arr int d = a[test_fun(_)]
-
-int test_fun(int el)
-{
-	return el * 7 / 3
-}
 ```
 
-- Przecięcie kolekcji (:) - wycina wszystkie elementy od wybranego indeksu i zwraca je jako kolekcja
+### Rzutowanie tablic
+- W przypadku operacji dwuargumentowych na tablicach różnych typów (konkatenacja, część wspólna), kolekcja będąca prawym argumentem zostanie przekonwertowana na typ kolekcji będącej lewym argumentem
 ```
-arr int a = [1, 2, 3, 4]
-arr int b = a : 2        # a = [1, 2]; b = [3, 4]
+arr str lit = ["a", "b", "c"]
+arr int liczby = [1, 2, 3]
+lit ~ liczby # ["a", "b", "c", "1", "2", "3"]
 ```
-### Metody
-- `.insert(elem, idx)` - wstawia element `elem` do kolekcji w indeks `idx` (domyślnie na koniec)
+- Tego samego można dokonać z pomocą rzutowania jawnego
+- Rzutowanie pomiędzy tablicami o różnych stopniach zagnieżdżenia jest **zakazane**
 ```
-arr int a = [1, 3, 4]
-a.insert(5)     # a = [1, 3, 4, 5]
-a.insert(2, 1)  # a = [1, 2, 3, 4, 5]
+[[1, 2, 3]] as arr int # BŁĄD
 ```
-- `.remove(idx)` - usuwa element z danego indeksu `idx` i go zwraca
-	- domyślnie zostanie usunięty ostatni element
+- Nie można rzutować kolekcji na typy podstawowe poza `str`
 ```
-arr int a = [1, 2, 3]
-int removed = a.remove() # usunięta zostaje 3 i przypisana do removed
-a.remove(0) # a = [2]
+[1, 2, 3] as int # BŁĄD
+[1, 2, 3] as str # "[1, 2, 3]"
 ```
+
 
 ---
 ## Obsługa błędów
 ### Typy komunikatów + ich obsługa
 #### 1. Błędy "odzyskiwalne"
 - Niepożądane sytuacje, które mogą wystąpić w trakcie działania programu, z którymi program "wie" jak sobie poradzić
-- np. dzielenie przez zero, użycie indeksu tablicy wykraczającego poza zakres, pętla nieskończona (przekroczenie limitu iteracji)
-- W przypadku wykryciu takiego błędu program zatrzyma się i da programiście wybór odnośnie sposobu poradzenia sobie z problemem 
+- Po napotkaniu takiego błędu interpreter dalej będzie działał
 #### 2. Błędy krytyczne (panic)
 - Błędy, w których stan programu jest naruszony i dalsza praca grozi np. wyciekiem danych lub błędy składniowe, typów (type mismatch) itd.
 - Każdy błąd, który nie został zaklasyfikowany do błędów odzyskiwalnych
@@ -329,22 +387,15 @@ a.remove(0) # a = [2]
 ### Przykładowe komunikaty o błędach
 #### Błąd "odzyskiwalny"
 ```
-[PAUSE] Recoverable Error: Collection Index Out of Bounds
+[ERROR] Error: Collection Index Out of Bounds
 File: file.ds, Line: 42
-Statement: int a = liczby[5]
+Statement: return 2
 --------------------------------------------------
-Details: Attempted to access index [5]. 
-Current size of collection 'liczby' is 3 (indices 0-2).
-
-Choose an action to resume execution:
- [1] Return the default value for the target type (0 for int) and continue.
- [2] Skip this statement (variable 'a' remains uninitialized).
- [3] Throw a critical error (PANIC) and terminate the program.
-> _
+Details: No closing bracket after return from function
 ```
 #### Błąd krytyczny
 ```
-[PANIC] Critical Error: Type Mismatch in Arithmetic Operation
+[FATAL] Critical Error: Type Mismatch in Arithmetic Operation
 File: file.ds, Line: 22
 Statement: int wynik = "test" - 5
 --------------------------------------------------
@@ -358,11 +409,12 @@ File: file.ds, Line: 18
 Statement: int a = 4.9 + 2
 --------------------------------------------------
 Details: Implicit conversion of the 'flp' result (6.9) to the declared 'int' type caused truncation of the decimal part (result: 6). 
-If this is intentional, use explicit conversion: int(4.9 + 2) to silence this warning.
+If this is intentional, use explicit conversion: `(4.9 + 2) as int` to silence this warning.
 ```
 
 ---
 ## Przykłady
+- UWAGA: nie wyrobiłem się z bardziej konkretnymi przykładami, wiem, że polecą mi za to punkty (właściwie punkt), ale zamiast generować papkę z AI, dodam jutro coś konkretnego
 
 ```
 # Formatowanie liczb całkowitych:
@@ -393,11 +445,6 @@ str wynik = "10" + 5      # wynik = "15"
 int x = true + true + 10  # x = 12
 flp y = true + 0.5        # y = 1.5
 
-# Nie można zamieniać str na bool - w zamian za to:
-
-str s = "1"
-bool b = int(s)  # b = true
-
 # Niejawne konwersje w kolekcjach
 
 arr int liczby = [1, 2, "3.5", true] 
@@ -408,7 +455,6 @@ arr int liczby = [1, 2, "3.5", true]
 # Przypadki brzegowe operacji na kolekcjach
 
 arr int pusta = []
-int x = pusta.remove()  # Błąd odzyskiwalny
 arr int y = pusta[>10]  # Przypisze do y pustą kolekcję
 
 arr int a = [1, 2] * 0  # Wynikiem będzie []
@@ -498,117 +544,3 @@ int wynik = zepsuj(globalna, globalna)
 ```
 
 ---
-
-## GRAMATYKA
-
-### Znaki terminalne i literały
-
-```EBNF
-letter     = [A-Za-z];
-digit      = [0-9];
-underscore = "_";
-newline    = "\n";
-
-escape_sequence = "\\" , ( "\"" | "'" | "\\" | "n" | "t" | "r" ) ;
-
-character_except_single_quote = [^']
-character_except_double_quote = [^"]
-
-bool_lit   = "true" | "false" ;
-int_lit    = [ "+" | "-" ] , digit , { [ "'" ] , digit} ;
-
-(* flp może być w 3 formach: 3.14, 3., .14 *)
-flp_lit    = [ "+" | "-" ] , (
-				( digit, 
-					{ [ "'" ] , digit , "." , { [ "'" ] , digit } )
-				| ( "." , digit , { [ "'" ] , digit } ) 
-				| ( digit , { [ "'" ] , digit } , "." ) 
-             ) ;
-
-str_lit    = ('"' , 
-				{ character_except_double_quote | escape_sequence } ,
-				'"' )
-		   | ( "'" , 
-				{ character_except_single_quote | escape_sequence } ,
-			    "'" ) ;
-				
-arr_lit    = "[" , [ expression, { "," , expression } ] , "]" ;
-
-```
-
-### Typy i zmienne
-
-```EBNF
-base_type  = "int" | "flp" | "str" | "bool" ;
-type       = base_type | ( "arr" , base_type ) ;
-identifier = letter , { letter | digit | underscore } ;
-
-var_decl   = [ "const" ] , type, identifier , [ "=" , expression ] ;
-```
-
-### Wyrażenia
-
-```EBNF
-expression  = logical_or , [ assign_op , expression ] ;
-assign_op   = "="
-			| "+="
-			| "-="
-			| "*="
-			| "/="
-			| "^="
-			| "%="
-			| "~=" ;
-
-logical_or  = logical_and , { "or" , logical_and } ;
-logical_and = equality , { "and" , equality } ;
-equality    = relational , [ ( "==" | "!=" ) , relational ] ; 
-relational  = additive , [ ( "<" | ">" | "<=" | ">=" ) , additive ] ;
-additive    = multipl , { ( "+" | "-" | "~" ) , multipl } ;
-multipl     = unary_power , { ( "*" | "/" | "%" | "&" | ":" ) , 
-				unary_power } ;
-
-unary_power = ( ( "+" | "-" | "not" ) , unary_power )
-			| ( postfix , { "^" , unary_power } ) ;
-
-(*DO ZMIANY*)
-postfix     = primary , {
-		      ( "(" , [ arg_list ] , ")" )	
-			| ( "[" , expression , "]" )
-			| "!"
-			| ( "." , identifier , "(" , [ arg_list ] , ")" )
-			} ;
-			
-primary     = identifier
-			| int_lit
-			| flp_lit
-			| str_lit
-			| bool_lit
-			| arr_lit
-			| ( "(" , expression , ")" ) ;
-
-arg_list    = expression , { ",", expression } ;
-```
-
-### Instrukcje, zakresy, funkcje
-
-```EBNF
-scope       = "{" , newline , { statement } , "}" ;
-
-if_stmt     = "if" , "(" , expression , ")" , scope , 
-				[ "else" , scope ] ;
-while_stmt  = "while" , "(" , expression , ")" , scope ;
-
-func_params = [ "const" ] , type , identifier , { "," , [ "const" ] , type , identifier } ;
-func_decl   = [ "const" ] , type , identifier , 
-				"(" , [ func_params ] , ")" , scope ;
-
-ret_stmt    = "return" , [ expression ] ;
-
-statement   = ( var_decl | expression | ret_stmt ) , newline
-			| if_stmt , newline
-			| while_stmt , newline
-			| func_decl , newline
-			| scope , newline ;	
-
-program = { statement } ;
-```
