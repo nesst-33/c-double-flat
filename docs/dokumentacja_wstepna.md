@@ -223,6 +223,13 @@ else {...}
 
 while (condition) {...}
 ```
+- W przypadku wykorzystania pojedynczych instrukcji w ciele instrukcji warunkowych/pętli można pominąć nawiasy:
+```
+if (condition) statement
+else statement
+
+while (condition) statement
+```
 
 ---
 ## Definiowanie i wołanie funkcji
@@ -346,11 +353,17 @@ arr int b = a[>3] # b = [4, 5, 6]
 ```
 
 - Mapowanie względem działania/funkcji - może być łączone z filtracją
-	- w przypadku wykorzystania funkcji, jej typ wynikowy musi odpowiadać typowi kolekcji, oraz musi przyjmować jeden argument odpowiadający elementowi kolekcji
+	- w przypadku wykorzystania funkcji, jej typ wynikowy musi odpowiadać typowi kolekcji, oraz musi przyjmować min. jeden argument odpowiadający elementowi kolekcji (reprezentowany placeholderem - _)
 ```
 arr int a = [3, 4, 5]
 arr int b = a[*3]    # b = [9, 12, 15]
 arr int c = a[>4][*2] # c = [10]
+arr int d = a[between(_, 2, 4)] # d = [3]
+
+bool between(int el, int lower, int upper)
+{
+	return lower < el and el < upper
+}
 ```
 
 ### Rzutowanie tablic
@@ -414,7 +427,6 @@ If this is intentional, use explicit conversion: `(4.9 + 2) as int` to silence t
 
 ---
 ## Przykłady
-- UWAGA: nie wyrobiłem się z bardziej konkretnymi przykładami, wiem, że polecą mi za to punkty (właściwie punkt), ale zamiast generować papkę z AI, dodam jutro coś konkretnego
 
 ```
 # Formatowanie liczb całkowitych:
@@ -543,4 +555,16 @@ int wynik = zepsuj(globalna, globalna)
 
 ```
 
----
+### Obliczanie n-tej liczby Fibonacciego
+
+```
+int fib(int n)
+{
+	if (n <= 1)
+	{
+		return n
+	}
+	return fib(n - 1) + fib(n - 2)	
+}
+```
+

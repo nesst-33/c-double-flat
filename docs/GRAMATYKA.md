@@ -43,13 +43,12 @@ base_type  = "int" | "flp" | "str" | "bool" ;
 type       = [ "const" ] , ( base_type | ( { "arr" } , base_type ) );
 identifier = letter , { letter | digit | underscore } ;
 
-var_decl   = type, identifier , [ "=" , expression ] ;
+var_decl   = type , identifier , [ "=" , expression ] ;
 ```
 
 ### Wyrażenia
 
 ```EBNF
-expression  = logical_or , [ assign_op , expression ] ;
 assign_op   = "="
 			| "+="
 			| "-="
@@ -57,6 +56,8 @@ assign_op   = "="
 			| "/="
 			| "%="
 			| "~=" ;
+			
+expression  = logical_or , [ assign_op , expression ] ;
 
 logical_or  = logical_and , { "or" , logical_and } ;
 logical_and = equality , { "and" , equality } ;
@@ -93,25 +94,42 @@ arg_list    = expression , { ",", expression } ;
 ### Instrukcje, zakresy, funkcje
 
 ```EBNF
-scope       = "{" , newline , { statement } , "}" ;
+scope       = "{" , [ newline ] , { statement } , "}" ;
+scope_in_func   = "{" , [ newline ] , { stmt_in_func }, "}"
 
-if_stmt     = "if" , "(" , expression , ")" , [ newline ] , scope , 
-				[ [ newline ] , "else" , [ newline ] , scope ] ;
-while_stmt  = "while" , "(" , expression , ")" , [ newline ] , scope ;
+if_stmt     = "if" , "(" , expression , ")" , [ newline ] ,
+			  ( scope_in_func | simple_stmt ) , 
+			  [ [ newline ] , "else" , [ newline ] , 
+			    ( scope_in_func | simple_stmt ) ] ;
+			  
+while_stmt  = "while" , "(" , expression , ")" , [ newline ] ,
+			  ( scope_in_func | simple_stmt ) ;
 
 func_params = type , identifier , { "," , type , identifier } ;
 func_decl   = ( type | "void" ) , identifier , 
-				"(" , [ func_params ] , ")" , [ newline ] , scope ;
+				"(" , [ func_params ] , ")" , [ newline ] , 
+				scope_in_func ;
 
 ret_stmt    = "return" , [ expression ] ;
 
-statement   = var_decl , newline
-			| expression , newline 
-			| ret_stmt , newline
-			| if_stmt , newline
-			| while_stmt , newline
-			| func_decl , newline
-			| scope , newline ;	
+simple_stmt     = var_decl
+				| expression
+				| ret_stmt 
 
-program = { statement } ;
+(* Zakresy i instrukcje bez deklaracji funkcji *)
+(* Wprowadziłem ten podział, aby zakaz deklaracji funkcji w funkcjach *)
+stmt_in_func    = simple_stmt , newline
+				| if_stmt, newline
+				| while_stmt, newline
+				| scope_in_func , newline
+
+statement       = var_decl , newline
+				| expression , newline 
+				| ret_stmt , newline
+				| if_stmt , newline
+				| while_stmt , newline
+				| func_decl , newline
+				| scope , newline ;	
+
+program         = { statement } ;
 ```
