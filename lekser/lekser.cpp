@@ -104,12 +104,37 @@ struct Token
     Position position; 
 };
 
+bool match(char expected, std::istream& stream)
+{
+    if (stream.peek() == expected)
+    {
+        stream.get();
+        return true;
+    }
+    return false;
+}
+
 Token tokenLoop(std::istream& input)
 {
-    char a;
-    while ( input.get(a) )
+    char character{};
+    while (true)
     {
+        character = input.peek();
+        if (character == '\n')
+            input.get();
+            return Token{TokenType::NEWLINE_T, character};
 
+        if (std::isspace(character))
+            input.get();
+            continue;
+
+        switch (character)
+        {
+            case '+':
+            case '-':
+            case '*':
+                return Token{};
+        }
     }
     
     return Token{};
