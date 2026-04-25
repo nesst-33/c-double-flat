@@ -28,6 +28,7 @@ enum class TokenType
     CONCAT_T,           // ~
     CONJUN_T,           // &
     SPLIT_T,            // :
+    CARDINALITY_T,      // !
     APPEND_T,           // <<
     EXTRACT_T,          // >>
 
@@ -92,6 +93,21 @@ const std::unordered_map<std::string_view, TokenType> keyword_map = {
     {"return", TokenType::RETURN_T}
 };
 
+const std::unordered_map<std::string_view, TokenType> operator_map = {
+    {"+", TokenType::PLUS_T},
+    {"-", TokenType::MINUS_T},
+    {"/", TokenType::DIV_T},
+    {"*", TokenType::MULT_T},
+    {"%", TokenType::MOD_T},
+    {"~", TokenType::CONCAT_T},
+    {"+=", TokenType::ADD_ASSIGN_T},
+    {"-=", TokenType::SUB_ASSIGN_T},
+    {"/=", TokenType::DIV_ASSIGN_T},
+    {"*=", TokenType::MULT_ASSIGN_T},
+    {"%=", TokenType::MOD_ASSIGN_T},
+    {"~=", TokenType::CONCAT_ASSIGN_T}
+};
+
 struct Position
 {
     int offset{}, line{}, column{};
@@ -114,18 +130,52 @@ bool match(char expected, std::istream& stream)
     return false;
 }
 
+Token handleOperator(std::istream& input, char character)
+{
+    // Próbowałem się tu wycwanić jako, że każdy z operatorów zawartych
+    // w mapie operator_map ma wariant ze znakiem =
+    
+    std::string op(1, character);
+    if (input.peek() == '=')
+    {
+        input.get();
+        op += "=";
+    }
+
+    TokenType op_type = operator_map.at(op);
+    return Token(op_type, op);
+}
+
+Token handleLesser(std::istream& input, char character)
+{
+    char next_char = input.peek();
+
+    switch (next_char)
+    {
+        case '<':
+            return Token(TokenType::APPEND_T, "<<");
+        case '=':
+            return Token(TokenType::LESSER_EQ_T, "<=");
+        default:
+            return Token(TokenType::LESSER_T, "<");
+    }
+}
+
+Token handleGreater(std::istream& input, char character)
+{
+}
+
+
 Token tokenLoop(std::istream& input)
 {
     char character{};
     while (true)
     {
-        character = input.peek();
+        character = input.get();
         if (character == '\n')
-            input.get();
             return Token{TokenType::NEWLINE_T, character};
 
         if (std::isspace(character))
-            input.get();
             continue;
 
         switch (character)
@@ -133,7 +183,13 @@ Token tokenLoop(std::istream& input)
             case '+':
             case '-':
             case '*':
-                return Token{};
+            case '/':
+            case '~':
+            case '%':
+                return handleOperator(input, character);
+
+            case '<':
+            case '>':
         }
     }
     
@@ -145,3 +201,8 @@ class UniversalReader
 {
 
 };
+
+int main()
+{
+    return 0;
+}
