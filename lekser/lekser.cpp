@@ -148,13 +148,13 @@ Token handleOperator(std::istream& input, char character)
 
 Token handleLesser(std::istream& input, char character)
 {
-    char next_char = input.peek();
-
-    switch (next_char)
+    switch (input.peek())
     {
         case '<':
+            input.get();
             return Token(TokenType::APPEND_T, "<<");
         case '=':
+            input.get();
             return Token(TokenType::LESSER_EQ_T, "<=");
         default:
             return Token(TokenType::LESSER_T, "<");
@@ -163,8 +163,52 @@ Token handleLesser(std::istream& input, char character)
 
 Token handleGreater(std::istream& input, char character)
 {
+    switch (input.peek())
+    {
+        case '>':
+            input.get();
+            return Token(TokenType::EXTRACT_T, ">>"); 
+        case '=':
+            input.get();
+            return Token(TokenType::GREATER_EQ_T, ">=");
+        default:
+            return Token(TokenType::GREATER_T, ">");
+    }
 }
 
+Token handleEq(std::istream& input, char character)
+{
+    switch (input.peek())
+    {
+        case '=':
+            input.get();
+            return Token(TokenType::EQ_T, "==");
+        default:
+            return Token(TokenType::ASSIGN_T, "=");
+    }
+}
+
+Token handleExclamation(std::istream& input, char character)
+{
+    switch (input.peek())
+    {
+        case '=':
+            input.get();
+            return Token(TokenType::NOT_EQ_T, "!=");
+        default:
+            return Token(TokenType::CARDINALITY_T, "!");
+    }
+}
+
+bool match(std::istream& input, char character)
+{
+    if (input.peek() == character)
+    {
+        input.get();
+        return true;
+    }
+    return false;
+}
 
 Token tokenLoop(std::istream& input)
 {
@@ -189,7 +233,18 @@ Token tokenLoop(std::istream& input)
                 return handleOperator(input, character);
 
             case '<':
+                if (match(input, '<')) return Token(TokenType::APPEND_T, "<<");
+                if (match(input, '=')) return Token(TokenType::LESSER_EQ_T, "<=");
+                return Token(TokenType::LESSER_T, "<");
+                
             case '>':
+                if (match(input, '>')) return Token(TokenType::EXTRACT_T, ">>");
+                if (match(input, '=')) return Token(TokenType::GREATER_EQ_T, ">=");
+                return Token(TokenType::GREATER_T);
+
+            case '=':
+                if (match(input, '=')) return Token(TokenType::EQ_T, "==");
+                return Token(TokenType::ASSIGN_T, "=");
         }
     }
     
