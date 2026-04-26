@@ -3,12 +3,22 @@
 #include <iostream>
 #include <unordered_map>
 #include <string_view>
+#include <cctype>
+#include <stdexcept>
 
 // TODO: dodać backslash jako kontynuacja linii
 
 namespace Config
 {
-    inline constexpr int MAX_TOKEN_LEN = 255;
+    inline constexpr int MAX_ID_LEN = 255;
+};
+
+class LexerException : public std::runtime_error
+{
+// TODO: Dodać zwracanie pozycji do błędu
+public:
+    LexerException(const std::string& msg)
+        : std::runtime_error("Lexer Error: " + msg) {}
 };
 
 enum class TokenType
@@ -161,8 +171,60 @@ Token handleComment(std::istream& input)
     return Token{};
 }
 
-Token buildNumber(std::istream& input, char character) return Token{};
-Token buildIdOrKeyword(std::istream& input, char character) return Token{};
+double buildDecimal(std::istream& input)
+{
+    double decimalExpansion {0.0};
+    double divisor {10.0};
+
+    while (std::isdigit(input.peek()))
+    {
+        decimalExpansion += (input.get() - '0') / divisor;
+        divisor *= 10;
+    }
+
+    return decimalExpansion;
+}
+
+Token buildNumber(std::istream& input, char character) 
+{
+    int total {character - '0'};
+
+    while (std::isdigit(input.peek()))
+    {
+        total *= 10;
+        total += input.get() - '0';
+    }
+    
+    if (input.peek() == '.')
+    {
+        input.get();
+        double flp_total = total + buildDecimal(input);
+        return Token(TokenType::FLP_VALUE_T, flp_total);
+    }
+    return Token {TokenType::INT_VALUE_T, total};
+}
+
+Token buildIdOrKeyword(std::istream& input, char character) 
+{
+    char identifier[Config::MAX_ID_LEN] = {character};
+    int i {1};
+    
+    while (std::isalnum(input.peek()) || input.peek() == '_')
+    {
+        if (i < Config::MAX_ID_LEN)
+        {
+            identifier[i] = input.get();
+            i++;
+        }
+        else
+        {
+            throw LexerException("Identifier too long (max 255 characters)");
+            input.get();
+        }
+    }
+
+    return Token{};
+}
 
 Token tokenLoop(std::istream& input)
 {
@@ -215,6 +277,10 @@ Token tokenLoop(std::istream& input)
             case ']': return Token(TokenType::R_SQUARE_T, "]");
 
             case '#': return handleComment(input);
+
+            case '.':
+                if (std::isdigit(input.peek()))
+                    return Token(TokenType::FLP_VALUE_T, buildDecimal(input));
 
             default:
                 if (std::isdigit(character)) 
