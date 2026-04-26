@@ -116,7 +116,7 @@ struct Position
 struct Token
 {
     TokenType type;
-    std::variant<std::string, int, double> value; 
+    std::variant<std::string_view, int, double> value; 
     Position position; 
 };
 
@@ -146,60 +146,6 @@ Token handleOperator(std::istream& input, char character)
     return Token(op_type, op);
 }
 
-Token handleLesser(std::istream& input, char character)
-{
-    switch (input.peek())
-    {
-        case '<':
-            input.get();
-            return Token(TokenType::APPEND_T, "<<");
-        case '=':
-            input.get();
-            return Token(TokenType::LESSER_EQ_T, "<=");
-        default:
-            return Token(TokenType::LESSER_T, "<");
-    }
-}
-
-Token handleGreater(std::istream& input, char character)
-{
-    switch (input.peek())
-    {
-        case '>':
-            input.get();
-            return Token(TokenType::EXTRACT_T, ">>"); 
-        case '=':
-            input.get();
-            return Token(TokenType::GREATER_EQ_T, ">=");
-        default:
-            return Token(TokenType::GREATER_T, ">");
-    }
-}
-
-Token handleEq(std::istream& input, char character)
-{
-    switch (input.peek())
-    {
-        case '=':
-            input.get();
-            return Token(TokenType::EQ_T, "==");
-        default:
-            return Token(TokenType::ASSIGN_T, "=");
-    }
-}
-
-Token handleExclamation(std::istream& input, char character)
-{
-    switch (input.peek())
-    {
-        case '=':
-            input.get();
-            return Token(TokenType::NOT_EQ_T, "!=");
-        default:
-            return Token(TokenType::CARDINALITY_T, "!");
-    }
-}
-
 bool match(std::istream& input, char character)
 {
     if (input.peek() == character)
@@ -209,6 +155,14 @@ bool match(std::istream& input, char character)
     }
     return false;
 }
+
+Token handleComment(std::istream& input)
+{
+    return Token{};
+}
+
+Token buildNumber(std::istream& input, char character) return Token{};
+Token buildIdOrKeyword(std::istream& input, char character) return Token{};
 
 Token tokenLoop(std::istream& input)
 {
@@ -245,6 +199,31 @@ Token tokenLoop(std::istream& input)
             case '=':
                 if (match(input, '=')) return Token(TokenType::EQ_T, "==");
                 return Token(TokenType::ASSIGN_T, "=");
+
+            case '!':
+                if (match(input, '=')) return Token(TokenType::NOT_EQ_T, "!=");
+                return Token(TokenType::CARDINALITY_T, "!");
+            
+            case ':': return Token(TokenType::SPLIT_T, ":");
+            case '&': return Token(TokenType::CONJUN_T, "&");
+            case ',': return Token(TokenType::COMMA_T, ",");
+            case '(': return Token(TokenType::L_BRACKET_T, "(");
+            case ')': return Token(TokenType::R_BRACKET_T, ")");
+            case '{': return Token(TokenType::L_BRACE_T, "{");
+            case '}': return Token(TokenType::R_BRACE_T, "}");
+            case '[': return Token(TokenType::L_SQUARE_T, "[");
+            case ']': return Token(TokenType::R_SQUARE_T, "]");
+
+            case '#': return handleComment(input);
+
+            default:
+                if (std::isdigit(character)) 
+                    return buildNumber(input, character);
+                if (std::isalpha(character))
+                    return buildIdOrKeyword(input, character);
+                return Token(TokenType::UNKNOWN, std::string(1, character));
+
+
         }
     }
     
