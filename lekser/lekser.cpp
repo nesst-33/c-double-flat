@@ -6,10 +6,9 @@
 #include <cctype>
 #include <stdexcept>
 
-// TODO: dodać backslash jako kontynuacja linii
-
 namespace Config
 {
+    // Max identifier length
     inline constexpr int MAX_ID_LEN = 255;
 };
 
@@ -120,7 +119,9 @@ const std::unordered_map<std::string_view, TokenType> operator_map = {
 
 struct Position
 {
-    int offset{}, line{}, column{};
+    int line{};
+    int column{};
+    size_t offset{}; // NOTE: this is a logical character offset; NOT A BYTE OFFSET!
 };
 
 struct Token
@@ -134,10 +135,37 @@ class Lexer
 {
     std::istream& m_input;
     std::string comment_buffer{};
+    Position curr_pos{1, 0, 0};
+    bool lineBreak{false};
 public:
     Lexer(std::istream& input) : m_input(input) {}
+    char getChar();
     Token handleComment();
 };
+
+char Lexer::getChar()
+{
+    char ch = m_input.get();
+
+    // I could just use .tellg() here but imo it's better to avoid a system call if I can
+    curr_pos.offset++; 
+
+    if (lineBreak)
+    {
+        lineBreak = false;
+        curr_pos.line++;
+        curr_pos.column = 1;
+    }
+    else
+        curr_pos.column++;
+
+    if (ch == '\n')
+    {
+        lineBreak = true;
+    }
+
+    return ch;
+}
 
 bool match(char expected, std::istream& stream)
 {
@@ -182,10 +210,15 @@ Token Lexer::handleComment()
     // The best way I found to build out a comment into a token is to allocate
     // a 64 char string to avoid the smaller reallocations and then add new chars to it.
 
+    // Whatever the implementation of std::string is, I think C-style reallocation
+    // at best would match it, but it would probably be worse
+
     comment_buffer.clear(); 
 
     if (comment_buffer.capacity() < 64)
         comment_buffer.reserve(64);
+
+    comment_buffer.push_back('#');
 
     while (m_input.peek() != '\n' && m_input.peek() != EOF)
         comment_buffer.push_back(m_input.get());
@@ -304,7 +337,7 @@ Token tokenLoop(std::istream& input)
             case '[': return Token(TokenType::L_SQUARE_T, "[");
             case ']': return Token(TokenType::R_SQUARE_T, "]");
 
-            case '#': return handleComment(input);
+            case '#': return Lexer::handleComment();
 
             // Backslash can be used as line continuation
             case '\\':
