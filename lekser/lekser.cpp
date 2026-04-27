@@ -86,36 +86,6 @@ enum class TokenType
     UNKNOWN             // Unknown token
 };
 
-const std::unordered_map<std::string_view, TokenType> keyword_map = {
-    {"if", TokenType::IF_T},
-    {"else", TokenType::ELSE_T},
-    {"while", TokenType::WHILE_T},
-    {"const", TokenType::CONST_T},
-    {"as", TokenType::AS_T},
-    {"and", TokenType::AND_T},
-    {"or", TokenType::OR_T},
-    {"not", TokenType::NOT_T},
-    {"void", TokenType::VOID_T},
-    {"int", TokenType::INT_T},
-    {"flp", TokenType::FLP_T},
-    {"arr", TokenType::ARR_T},
-    {"return", TokenType::RETURN_T}
-};
-
-const std::unordered_map<std::string_view, TokenType> operator_map = {
-    {"+", TokenType::PLUS_T},
-    {"-", TokenType::MINUS_T},
-    {"/", TokenType::DIV_T},
-    {"*", TokenType::MULT_T},
-    {"%", TokenType::MOD_T},
-    {"~", TokenType::CONCAT_T},
-    {"+=", TokenType::ADD_ASSIGN_T},
-    {"-=", TokenType::SUB_ASSIGN_T},
-    {"/=", TokenType::DIV_ASSIGN_T},
-    {"*=", TokenType::MULT_ASSIGN_T},
-    {"%=", TokenType::MOD_ASSIGN_T},
-    {"~=", TokenType::CONCAT_ASSIGN_T}
-};
 
 struct Position
 {
@@ -133,14 +103,63 @@ struct Token
 
 class Lexer
 {
-    std::istream& m_input;
-    std::string comment_buffer{};
-    Position curr_pos{1, 0, 0};
-    bool lineBreak{false};
 public:
     Lexer(std::istream& input) : m_input(input) {}
+
+    Position getPosition() const
+    {
+        return currentPos;
+    }
+
+    Token getToken();
+
+
+private:
+    std::istream& m_input;
+    std::string comment_buffer{};
+    Position currentPos{1, 0, 0};
+    bool lineBreak{false};
+
+    static inline const std::unordered_map<std::string_view, TokenType> keyword_map = {
+        {"if", TokenType::IF_T},
+        {"else", TokenType::ELSE_T},
+        {"while", TokenType::WHILE_T},
+        {"const", TokenType::CONST_T},
+        {"as", TokenType::AS_T},
+        {"and", TokenType::AND_T},
+        {"or", TokenType::OR_T},
+        {"not", TokenType::NOT_T},
+        {"void", TokenType::VOID_T},
+        {"int", TokenType::INT_T},
+        {"flp", TokenType::FLP_T},
+        {"arr", TokenType::ARR_T},
+        {"return", TokenType::RETURN_T}
+    };
+
+    static inline const std::unordered_map<std::string_view, TokenType> operator_map = {
+        {"+", TokenType::PLUS_T},
+        {"-", TokenType::MINUS_T},
+        {"/", TokenType::DIV_T},
+        {"*", TokenType::MULT_T},
+        {"%", TokenType::MOD_T},
+        {"~", TokenType::CONCAT_T},
+        {"+=", TokenType::ADD_ASSIGN_T},
+        {"-=", TokenType::SUB_ASSIGN_T},
+        {"/=", TokenType::DIV_ASSIGN_T},
+        {"*=", TokenType::MULT_ASSIGN_T},
+        {"%=", TokenType::MOD_ASSIGN_T},
+        {"~=", TokenType::CONCAT_ASSIGN_T}
+    };
+
     char getChar();
-    Token handleComment();
+    bool match(char character);
+    Token handleOperator(char character, Position startPos);
+    Token handleComment(Position startPos);
+    Token buildNumber(char character, Position startPos);
+    Token buildIdOrKeyword(char character, Position startPos);
+
+    double buildDecimal();
+
 };
 
 char Lexer::getChar()
@@ -148,16 +167,18 @@ char Lexer::getChar()
     char ch = m_input.get();
 
     // I could just use .tellg() here but imo it's better to avoid a system call if I can
-    curr_pos.offset++; 
+    currentPos.offset++; 
 
     if (lineBreak)
     {
         lineBreak = false;
-        curr_pos.line++;
-        curr_pos.column = 1;
+        currentPos.line++;
+        currentPos.column = 1;
     }
     else
-        curr_pos.column++;
+    {
+        currentPos.column++;
+    }
 
     if (ch == '\n')
     {
@@ -167,43 +188,34 @@ char Lexer::getChar()
     return ch;
 }
 
-bool match(char expected, std::istream& stream)
+bool Lexer::match(char character)
 {
-    if (stream.peek() == expected)
+    if (m_input.peek() == character)
     {
-        stream.get();
+        getChar();
         return true;
     }
     return false;
 }
 
-Token handleOperator(std::istream& input, char character)
+Token Lexer::handleOperator(char character, Position startPos)
 {
     // Próbowałem się tu wycwanić jako, że każdy z operatorów zawartych
     // w mapie operator_map ma wariant ze znakiem =
     
     std::string op(1, character);
-    if (input.peek() == '=')
+    if (m_input.peek() == '=')
     {
-        input.get();
+        getChar();
         op += "=";
     }
 
     TokenType op_type = operator_map.at(op);
-    return Token(op_type, op);
+    return Token(op_type, op, startPos);
 }
 
-bool match(std::istream& input, char character)
-{
-    if (input.peek() == character)
-    {
-        input.get();
-        return true;
-    }
-    return false;
-}
 
-Token Lexer::handleComment()
+Token Lexer::handleComment(Position startPos)
 {
     // The length of a comment is unrestricted, so using a C-style array
     // for appending new characters would be inefficient.
@@ -221,42 +233,43 @@ Token Lexer::handleComment()
     comment_buffer.push_back('#');
 
     while (m_input.peek() != '\n' && m_input.peek() != EOF)
-        comment_buffer.push_back(m_input.get());
+        comment_buffer.push_back(getChar());
 
-    return Token(TokenType::COMMENT_T, comment_buffer);
+    return Token(TokenType::COMMENT_T, comment_buffer, startPos);
 }
 
-double buildDecimal(std::istream& input)
+Token Lexer::buildNumber(char character, Position startPos) 
+{
+    int total {character - '0'};
+
+    while (std::isdigit(m_input.peek()))
+    {
+        total *= 10;
+        total += getChar() - '0';
+    }
+    
+    if (m_input.peek() == '.')
+    {
+        getChar();
+        double flp_total = total + buildDecimal();
+        return Token(TokenType::FLP_VALUE_T, flp_total);
+    }
+    return Token {TokenType::INT_VALUE_T, total, startPos};
+}
+
+
+double Lexer::buildDecimal()
 {
     double decimalExpansion {0.0};
     double divisor {10.0};
 
-    while (std::isdigit(input.peek()))
+    while (std::isdigit(m_input.peek()))
     {
-        decimalExpansion += (input.get() - '0') / divisor;
+        decimalExpansion += (getChar() - '0') / divisor;
         divisor *= 10;
     }
 
     return decimalExpansion;
-}
-
-Token buildNumber(std::istream& input, char character) 
-{
-    int total {character - '0'};
-
-    while (std::isdigit(input.peek()))
-    {
-        total *= 10;
-        total += input.get() - '0';
-    }
-    
-    if (input.peek() == '.')
-    {
-        input.get();
-        double flp_total = total + buildDecimal(input);
-        return Token(TokenType::FLP_VALUE_T, flp_total);
-    }
-    return Token {TokenType::INT_VALUE_T, total};
 }
 
 Token buildIdOrKeyword(std::istream& input, char character) 
@@ -287,90 +300,95 @@ Token buildIdOrKeyword(std::istream& input, char character)
     return Token(TokenType::IDENTIFIER_T, identifier);
 }
 
+Token Lexer::getToken()
+{
+    char character{};
+
+    // I have to skip whitespace but still capture newlines
+    do
+    {
+        character = getChar();
+        if (character == '\n')
+            return Token{TokenType::NEWLINE_T, character, currentPos};
+    } while (std::isspace(character));
+
+    Position startPos = currentPos;
+
+    switch (character)
+    {
+        case '+':
+        case '-':
+        case '*':
+        case '/':
+        case '~':
+        case '%':
+            return handleOperator(input, character);
+
+        case '<':
+            if (match(input, '<')) return Token(TokenType::APPEND_T, "<<");
+            if (match(input, '=')) return Token(TokenType::LESSER_EQ_T, "<=");
+            return Token(TokenType::LESSER_T, "<");
+            
+        case '>':
+            if (match(input, '>')) return Token(TokenType::EXTRACT_T, ">>");
+            if (match(input, '=')) return Token(TokenType::GREATER_EQ_T, ">=");
+            return Token(TokenType::GREATER_T);
+
+        case '=':
+            if (match(input, '=')) return Token(TokenType::EQ_T, "==");
+            return Token(TokenType::ASSIGN_T, "=");
+
+        case '!':
+            if (match(input, '=')) return Token(TokenType::NOT_EQ_T, "!=");
+            return Token(TokenType::CARDINALITY_T, "!");
+        
+        case ':': return Token(TokenType::SPLIT_T, ":");
+        case '&': return Token(TokenType::CONJUN_T, "&");
+        case ',': return Token(TokenType::COMMA_T, ",");
+        case '(': return Token(TokenType::L_BRACKET_T, "(");
+        case ')': return Token(TokenType::R_BRACKET_T, ")");
+        case '{': return Token(TokenType::L_BRACE_T, "{");
+        case '}': return Token(TokenType::R_BRACE_T, "}");
+        case '[': return Token(TokenType::L_SQUARE_T, "[");
+        case ']': return Token(TokenType::R_SQUARE_T, "]");
+
+        case '#': return Lexer::handleComment();
+
+        // Backslash can be used as line continuation
+        case '\\':
+                while (std::isspace(input.peek()))
+                {
+                    input.get();
+                    continue;
+                }
+                continue;
+
+        // For building flp values that start with . (like .314)
+        case '.':
+            if (std::isdigit(input.peek()))
+                return Token(TokenType::FLP_VALUE_T, buildDecimal(input));
+        
+        case EOF:
+            return Token(TokenType::EOT, "");
+
+        default:
+            if (std::isdigit(character)) 
+                return buildNumber(input, character);
+            if (std::isalpha(character))
+                return buildIdOrKeyword(input, character);
+            return Token(TokenType::UNKNOWN, std::string(1, character));
+}
+
 Token tokenLoop(std::istream& input)
 {
     char character{};
+    Lexer lexer(input);
     while (true)
     {
-        character = input.get();
-        if (character == '\n')
-            return Token{TokenType::NEWLINE_T, character};
-
-        if (std::isspace(character))
-            continue;
-
-        switch (character)
-        {
-            case '+':
-            case '-':
-            case '*':
-            case '/':
-            case '~':
-            case '%':
-                return handleOperator(input, character);
-
-            case '<':
-                if (match(input, '<')) return Token(TokenType::APPEND_T, "<<");
-                if (match(input, '=')) return Token(TokenType::LESSER_EQ_T, "<=");
-                return Token(TokenType::LESSER_T, "<");
-                
-            case '>':
-                if (match(input, '>')) return Token(TokenType::EXTRACT_T, ">>");
-                if (match(input, '=')) return Token(TokenType::GREATER_EQ_T, ">=");
-                return Token(TokenType::GREATER_T);
-
-            case '=':
-                if (match(input, '=')) return Token(TokenType::EQ_T, "==");
-                return Token(TokenType::ASSIGN_T, "=");
-
-            case '!':
-                if (match(input, '=')) return Token(TokenType::NOT_EQ_T, "!=");
-                return Token(TokenType::CARDINALITY_T, "!");
-            
-            case ':': return Token(TokenType::SPLIT_T, ":");
-            case '&': return Token(TokenType::CONJUN_T, "&");
-            case ',': return Token(TokenType::COMMA_T, ",");
-            case '(': return Token(TokenType::L_BRACKET_T, "(");
-            case ')': return Token(TokenType::R_BRACKET_T, ")");
-            case '{': return Token(TokenType::L_BRACE_T, "{");
-            case '}': return Token(TokenType::R_BRACE_T, "}");
-            case '[': return Token(TokenType::L_SQUARE_T, "[");
-            case ']': return Token(TokenType::R_SQUARE_T, "]");
-
-            case '#': return Lexer::handleComment();
-
-            // Backslash can be used as line continuation
-            case '\\':
-                    while (std::isspace(input.peek()))
-                    {
-                        input.get();
-                        continue;
-                    }
-                    continue;
-
-            // For building flp values that start with . (like .314)
-            case '.':
-                if (std::isdigit(input.peek()))
-                    return Token(TokenType::FLP_VALUE_T, buildDecimal(input));
-            
-            case EOF:
-                return Token(TokenType::EOT, "");
-
-            default:
-                if (std::isdigit(character)) 
-                    return buildNumber(input, character);
-                if (std::isalpha(character))
-                    return buildIdOrKeyword(input, character);
-                return Token(TokenType::UNKNOWN, std::string(1, character));
+        character = lexer.getChar();
         }
     }
 }
-
-
-class UniversalReader
-{
-
-};
 
 int main()
 {
