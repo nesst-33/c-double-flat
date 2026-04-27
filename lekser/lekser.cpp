@@ -130,6 +130,15 @@ struct Token
     Position position; 
 };
 
+class Lexer
+{
+    std::istream& m_input;
+    std::string comment_buffer{};
+public:
+    Lexer(std::istream& input) : m_input(input) {}
+    Token handleComment();
+};
+
 bool match(char expected, std::istream& stream)
 {
     if (stream.peek() == expected)
@@ -166,9 +175,22 @@ bool match(std::istream& input, char character)
     return false;
 }
 
-Token handleComment(std::istream& input)
+Token Lexer::handleComment()
 {
-    return Token{};
+    // The length of a comment is unrestricted, so using a C-style array
+    // for appending new characters would be inefficient.
+    // The best way I found to build out a comment into a token is to allocate
+    // a 64 char string to avoid the smaller reallocations and then add new chars to it.
+
+    comment_buffer.clear(); 
+
+    if (comment_buffer.capacity() < 64)
+        comment_buffer.reserve(64);
+
+    while (m_input.peek() != '\n' && m_input.peek() != EOF)
+        comment_buffer.push_back(m_input.get());
+
+    return Token(TokenType::COMMENT_T, comment_buffer);
 }
 
 double buildDecimal(std::istream& input)
@@ -284,9 +306,22 @@ Token tokenLoop(std::istream& input)
 
             case '#': return handleComment(input);
 
+            // Backslash can be used as line continuation
+            case '\\':
+                    while (std::isspace(input.peek()))
+                    {
+                        input.get();
+                        continue;
+                    }
+                    continue;
+
+            // For building flp values that start with . (like .314)
             case '.':
                 if (std::isdigit(input.peek()))
                     return Token(TokenType::FLP_VALUE_T, buildDecimal(input));
+            
+            case EOF:
+                return Token(TokenType::EOT, "");
 
             default:
                 if (std::isdigit(character)) 
