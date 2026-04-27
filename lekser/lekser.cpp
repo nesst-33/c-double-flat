@@ -206,24 +206,30 @@ Token buildNumber(std::istream& input, char character)
 
 Token buildIdOrKeyword(std::istream& input, char character) 
 {
-    char identifier[Config::MAX_ID_LEN] = {character};
+    char identifier_chars[Config::MAX_ID_LEN] = {character};
     int i {1};
     
+    // Najpierw ciąg znaków alfanumerycznych traktowany jest jako identyfikator
     while (std::isalnum(input.peek()) || input.peek() == '_')
     {
         if (i < Config::MAX_ID_LEN)
         {
-            identifier[i] = input.get();
+            identifier_chars[i] = input.get();
             i++;
         }
         else
-        {
             throw LexerException("Identifier too long (max 255 characters)");
-            input.get();
-        }
     }
-
-    return Token{};
+    
+    // Potem próbujemy go dopasować do jakiegoś słowa klucza
+    std::string identifier {identifier_chars};
+    if (auto keyword_iterator = keyword_map.find(identifier); 
+            keyword_iterator != keyword_map.end())
+    {
+        return Token(keyword_iterator->second, keyword_iterator->first);
+    }
+    
+    return Token(TokenType::IDENTIFIER_T, identifier);
 }
 
 Token tokenLoop(std::istream& input)
@@ -288,12 +294,8 @@ Token tokenLoop(std::istream& input)
                 if (std::isalpha(character))
                     return buildIdOrKeyword(input, character);
                 return Token(TokenType::UNKNOWN, std::string(1, character));
-
-
         }
     }
-    
-    return Token{};
 }
 
 
