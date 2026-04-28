@@ -1,0 +1,14 @@
+# TEST INTEGRACYJNY NR 1
+const int MAX = 100
+str path = "C:\\temp\\file.txt"
+flp value = .5 \
+            + 42.0
+if (value >= 10 and not 0 or value < 5) {
+    arr data = [1, 2, 3]
+    data << 4
+    data[0] %= 2
+    return value as int
+} else {
+    void func() { while(value != 0) value -= 1 }
+}
+~ ~= / /= * *= >> == !
