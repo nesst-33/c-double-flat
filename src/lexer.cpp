@@ -6,12 +6,6 @@
 #include <cctype>
 #include <stdexcept>
 
-namespace Config
-{
-    // Max identifier length
-    inline constexpr int MAX_ID_LEN = 255;
-};
-
 struct Position
 {
     int line{};
@@ -117,6 +111,7 @@ private:
     std::string m_buffer{};
     Position currentPos{1, 0, -1};
     bool lineBreak{false};
+    static constexpr int MAX_ID_LEN = 255;
 
     char getChar();
     bool match(char character);
@@ -258,7 +253,7 @@ Token Lexer::buildNumber(char character, Position startPos)
         double flp_total = total + buildDecimal();
         return Token(TokenType::FLP_VALUE_T, flp_total);
     }
-    return Token {TokenType::INT_VALUE_T, total, startPos};
+    return Token(TokenType::INT_VALUE_T, total, startPos);
 }
 
 
@@ -278,13 +273,13 @@ double Lexer::buildDecimal()
 
 Token Lexer::buildIdOrKeyword(char character, Position startPos) 
 {
-    char identifier_chars[Config::MAX_ID_LEN] = {character};
+    char identifier_chars[MAX_ID_LEN] = {character};
     int i {1};
     
     // Najpierw ciąg znaków alfanumerycznych traktowany jest jako identyfikator
     while (std::isalnum(m_input.peek()) || m_input.peek() == '_')
     {
-        if (i < Config::MAX_ID_LEN)
+        if (i < MAX_ID_LEN)
         {
             identifier_chars[i] = getChar();
             i++;
@@ -391,7 +386,7 @@ Token Lexer::getToken()
     if (m_input.eof())
         return Token(TokenType::EOT);
     if (character == '\n')
-        return Token(TokenType::NEWLINE_T, '\n', startPos);
+        return Token(TokenType::NEWLINE_T, "\n", startPos);
 
     switch (character)
     {
