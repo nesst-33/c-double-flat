@@ -8,6 +8,7 @@ add_executable(
 target_link_libraries(
     hello_test
     GTest::gtest_main
+    LexerLib
 )
 
 include(GoogleTest)

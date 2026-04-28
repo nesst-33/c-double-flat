@@ -3,6 +3,14 @@ project(c_flat)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+include_directories(include)
+
+add_library(LexerLib src/Lexer.cpp)
+
+add_executable(compiler src/main.cpp)
+target_link_libraries(compiler PRIVATE LexerLib)
 
 include(FetchContent)
 FetchContent_Declare(
