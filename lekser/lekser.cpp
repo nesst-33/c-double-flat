@@ -12,12 +12,23 @@ namespace Config
     inline constexpr int MAX_ID_LEN = 255;
 };
 
+struct Position
+{
+    int line{};
+    int column{};
+    size_t offset{}; // NOTE: this is a logical character offset; NOT A BYTE OFFSET!
+};
+
 class LexerException : public std::runtime_error
 {
-// TODO: Dodać zwracanie pozycji do błędu
 public:
-    LexerException(const std::string& msg)
-        : std::runtime_error("Lexer Error: " + msg) {}
+    LexerException(const std::string& msg, Position pos)
+        : std::runtime_error("Lexer Error: " + msg), m_pos(pos) {}
+
+    Position getPosition() const { return m_pos; }
+
+private:
+    Position m_pos;
 };
 
 enum class TokenType
@@ -87,13 +98,6 @@ enum class TokenType
 };
 
 
-struct Position
-{
-    int line{};
-    int column{};
-    size_t offset{}; // NOTE: this is a logical character offset; NOT A BYTE OFFSET!
-};
-
 struct Token
 {
     TokenType type;
@@ -120,46 +124,50 @@ private:
     Position currentPos{1, 0, 0};
     bool lineBreak{false};
 
-    static inline const std::unordered_map<std::string_view, TokenType> keyword_map = {
-        {"if", TokenType::IF_T},
-        {"else", TokenType::ELSE_T},
-        {"while", TokenType::WHILE_T},
-        {"const", TokenType::CONST_T},
-        {"as", TokenType::AS_T},
-        {"and", TokenType::AND_T},
-        {"or", TokenType::OR_T},
-        {"not", TokenType::NOT_T},
-        {"void", TokenType::VOID_T},
-        {"int", TokenType::INT_T},
-        {"flp", TokenType::FLP_T},
-        {"arr", TokenType::ARR_T},
-        {"return", TokenType::RETURN_T}
-    };
-
-    static inline const std::unordered_map<std::string_view, TokenType> operator_map = {
-        {"+", TokenType::PLUS_T},
-        {"-", TokenType::MINUS_T},
-        {"/", TokenType::DIV_T},
-        {"*", TokenType::MULT_T},
-        {"%", TokenType::MOD_T},
-        {"~", TokenType::CONCAT_T},
-        {"+=", TokenType::ADD_ASSIGN_T},
-        {"-=", TokenType::SUB_ASSIGN_T},
-        {"/=", TokenType::DIV_ASSIGN_T},
-        {"*=", TokenType::MULT_ASSIGN_T},
-        {"%=", TokenType::MOD_ASSIGN_T},
-        {"~=", TokenType::CONCAT_ASSIGN_T}
-    };
-
     char getChar();
     bool match(char character);
     Token handleOperator(char character, Position startPos);
     Token handleComment(Position startPos);
     Token buildNumber(char character, Position startPos);
     Token buildIdOrKeyword(char character, Position startPos);
+    Token buildString(Position startPos);
 
     double buildDecimal();
 
+    static const std::unordered_map<std::string_view, TokenType> keyword_map; 
+    static const std::unordered_map<std::string_view, TokenType> operator_map;
+
+};
+
+const std::unordered_map<std::string_view, TokenType> Lexer::keyword_map = {
+    {"if", TokenType::IF_T},
+    {"else", TokenType::ELSE_T},
+    {"while", TokenType::WHILE_T},
+    {"const", TokenType::CONST_T},
+    {"as", TokenType::AS_T},
+    {"and", TokenType::AND_T},
+    {"or", TokenType::OR_T},
+    {"not", TokenType::NOT_T},
+    {"void", TokenType::VOID_T},
+    {"int", TokenType::INT_T},
+    {"flp", TokenType::FLP_T},
+    {"arr", TokenType::ARR_T},
+    {"return", TokenType::RETURN_T}
+};
+
+const std::unordered_map<std::string_view, TokenType> Lexer::operator_map = {
+    {"+", TokenType::PLUS_T},
+    {"-", TokenType::MINUS_T},
+    {"/", TokenType::DIV_T},
+    {"*", TokenType::MULT_T},
+    {"%", TokenType::MOD_T},
+    {"~", TokenType::CONCAT_T},
+    {"+=", TokenType::ADD_ASSIGN_T},
+    {"-=", TokenType::SUB_ASSIGN_T},
+    {"/=", TokenType::DIV_ASSIGN_T},
+    {"*=", TokenType::MULT_ASSIGN_T},
+    {"%=", TokenType::MOD_ASSIGN_T},
+    {"~=", TokenType::CONCAT_ASSIGN_T}
 };
 
 char Lexer::getChar()
@@ -272,21 +280,21 @@ double Lexer::buildDecimal()
     return decimalExpansion;
 }
 
-Token buildIdOrKeyword(std::istream& input, char character) 
+Token Lexer::buildIdOrKeyword(char character, Position startPos) 
 {
     char identifier_chars[Config::MAX_ID_LEN] = {character};
     int i {1};
     
     // Najpierw ciąg znaków alfanumerycznych traktowany jest jako identyfikator
-    while (std::isalnum(input.peek()) || input.peek() == '_')
+    while (std::isalnum(m_input.peek()) || m_input.peek() == '_')
     {
         if (i < Config::MAX_ID_LEN)
         {
-            identifier_chars[i] = input.get();
+            identifier_chars[i] = getChar();
             i++;
         }
         else
-            throw LexerException("Identifier too long (max 255 characters)");
+            throw LexerException("Identifier too long (max 255 characters)", startPos);
     }
     
     // Potem próbujemy go dopasować do jakiegoś słowa klucza
@@ -297,7 +305,12 @@ Token buildIdOrKeyword(std::istream& input, char character)
         return Token(keyword_iterator->second, keyword_iterator->first);
     }
     
-    return Token(TokenType::IDENTIFIER_T, identifier);
+    return Token(TokenType::IDENTIFIER_T, identifier, startPos);
+}
+
+Token Lexer::buildString(Position startPos)
+{
+    return Token{};
 }
 
 Token Lexer::getToken()
@@ -312,6 +325,15 @@ Token Lexer::getToken()
             return Token{TokenType::NEWLINE_T, character, currentPos};
     } while (std::isspace(character));
 
+    // Backslash signals line continuation
+    if (character == '\\')
+    {
+        do
+        {
+            character = getChar();
+        } while (std::isspace(character));
+    }
+
     Position startPos = currentPos;
 
     switch (character)
@@ -322,75 +344,54 @@ Token Lexer::getToken()
         case '/':
         case '~':
         case '%':
-            return handleOperator(input, character);
+            return handleOperator(character, startPos);
 
         case '<':
-            if (match(input, '<')) return Token(TokenType::APPEND_T, "<<");
-            if (match(input, '=')) return Token(TokenType::LESSER_EQ_T, "<=");
-            return Token(TokenType::LESSER_T, "<");
+            if (match('<')) return Token(TokenType::APPEND_T, "<<", startPos);
+            if (match('=')) return Token(TokenType::LESSER_EQ_T, "<=", startPos);
+            return Token(TokenType::LESSER_T, "<", startPos);
             
         case '>':
-            if (match(input, '>')) return Token(TokenType::EXTRACT_T, ">>");
-            if (match(input, '=')) return Token(TokenType::GREATER_EQ_T, ">=");
-            return Token(TokenType::GREATER_T);
+            if (match('>')) return Token(TokenType::EXTRACT_T, ">>", startPos);
+            if (match('=')) return Token(TokenType::GREATER_EQ_T, ">=", startPos);
+            return Token(TokenType::GREATER_T, ">", startPos);
 
         case '=':
-            if (match(input, '=')) return Token(TokenType::EQ_T, "==");
-            return Token(TokenType::ASSIGN_T, "=");
+            if (match('=')) return Token(TokenType::EQ_T, "==", startPos);
+            return Token(TokenType::ASSIGN_T, "=", startPos);
 
         case '!':
-            if (match(input, '=')) return Token(TokenType::NOT_EQ_T, "!=");
-            return Token(TokenType::CARDINALITY_T, "!");
+            if (match('=')) return Token(TokenType::NOT_EQ_T, "!=", startPos);
+            return Token(TokenType::CARDINALITY_T, "!", startPos);
         
-        case ':': return Token(TokenType::SPLIT_T, ":");
-        case '&': return Token(TokenType::CONJUN_T, "&");
-        case ',': return Token(TokenType::COMMA_T, ",");
-        case '(': return Token(TokenType::L_BRACKET_T, "(");
-        case ')': return Token(TokenType::R_BRACKET_T, ")");
-        case '{': return Token(TokenType::L_BRACE_T, "{");
-        case '}': return Token(TokenType::R_BRACE_T, "}");
-        case '[': return Token(TokenType::L_SQUARE_T, "[");
-        case ']': return Token(TokenType::R_SQUARE_T, "]");
+        case ':': return Token(TokenType::SPLIT_T, ":", startPos);
+        case '&': return Token(TokenType::CONJUN_T, "&", startPos);
+        case ',': return Token(TokenType::COMMA_T, ",", startPos);
+        case '(': return Token(TokenType::L_BRACKET_T, "(", startPos);
+        case ')': return Token(TokenType::R_BRACKET_T, ")", startPos);
+        case '{': return Token(TokenType::L_BRACE_T, "{", startPos);
+        case '}': return Token(TokenType::R_BRACE_T, "}", startPos);
+        case '[': return Token(TokenType::L_SQUARE_T, "[", startPos);
+        case ']': return Token(TokenType::R_SQUARE_T, "]", startPos);
 
-        case '#': return Lexer::handleComment();
-
-        // Backslash can be used as line continuation
-        case '\\':
-                while (std::isspace(input.peek()))
-                {
-                    input.get();
-                    continue;
-                }
-                continue;
+        case '\'': return Lexer::buildString(startPos);
+        case '"': return Lexer::buildString(startPos);
+        case '#': return Lexer::handleComment(startPos);
 
         // For building flp values that start with . (like .314)
         case '.':
-            if (std::isdigit(input.peek()))
-                return Token(TokenType::FLP_VALUE_T, buildDecimal(input));
+            if (std::isdigit(m_input.peek()))
+                return Token(TokenType::FLP_VALUE_T, buildDecimal(), startPos);
         
         case EOF:
-            return Token(TokenType::EOT, "");
+            return Token(TokenType::EOT, "", startPos);
 
         default:
             if (std::isdigit(character)) 
-                return buildNumber(input, character);
+                return buildNumber(character, startPos);
             if (std::isalpha(character))
-                return buildIdOrKeyword(input, character);
-            return Token(TokenType::UNKNOWN, std::string(1, character));
-}
-
-Token tokenLoop(std::istream& input)
-{
-    char character{};
-    Lexer lexer(input);
-    while (true)
-    {
-        character = lexer.getChar();
-        }
+                return buildIdOrKeyword(character, startPos);
+            return Token(TokenType::UNKNOWN, std::string(1, character), startPos);
     }
 }
 
-int main()
-{
-    return 0;
-}
