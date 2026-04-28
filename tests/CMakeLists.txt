@@ -1,15 +1,15 @@
 enable_testing()
 
 add_executable(
-    hello_test
-    hello_test.cpp 
+    lexer_tests
+    lexer_tests.cpp 
 )
 
 target_link_libraries(
-    hello_test
+    lexer_tests
     GTest::gtest_main
     LexerLib
 )
 
 include(GoogleTest)
-gtest_discover_tests(hello_test)
+gtest_discover_tests(lexer_tests)
