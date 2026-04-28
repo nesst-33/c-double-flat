@@ -238,6 +238,10 @@ void Lexer::clearWhitespace()
             Position startPos = currentPos;
             getChar();
 
+            // For Windows CRLF format
+            if (m_input.peek() == '\r')
+                getChar();
+
             // There can only be a newline after a backslash
             if (getChar() == '\n')
                 continue;
