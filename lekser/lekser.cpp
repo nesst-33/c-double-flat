@@ -109,18 +109,12 @@ class Lexer
 {
 public:
     Lexer(std::istream& input) : m_input(input) {}
-
-    Position getPosition() const
-    {
-        return currentPos;
-    }
-
+    Position getPosition() const { return currentPos; }
     Token getToken();
-
 
 private:
     std::istream& m_input;
-    std::string comment_buffer{};
+    std::string m_buffer{};
     Position currentPos{1, 0, 0};
     bool lineBreak{false};
 
@@ -130,8 +124,9 @@ private:
     Token handleComment(Position startPos);
     Token buildNumber(char character, Position startPos);
     Token buildIdOrKeyword(char character, Position startPos);
-    Token buildString(Position startPos);
-
+    Token buildString(char quoteType, Position startPos);
+    
+    char handleEscapeSeq(Position startPos);
     double buildDecimal();
 
     static const std::unordered_map<std::string_view, TokenType> keyword_map; 
@@ -233,17 +228,17 @@ Token Lexer::handleComment(Position startPos)
     // Whatever the implementation of std::string is, I think C-style reallocation
     // at best would match it, but it would probably be worse
 
-    comment_buffer.clear(); 
+    m_buffer.clear(); 
 
-    if (comment_buffer.capacity() < 64)
-        comment_buffer.reserve(64);
+    if (m_buffer.capacity() < 64)
+        m_buffer.reserve(64);
 
-    comment_buffer.push_back('#');
+    m_buffer.push_back('#');
 
     while (m_input.peek() != '\n' && m_input.peek() != EOF)
-        comment_buffer.push_back(getChar());
+        m_buffer.push_back(getChar());
 
-    return Token(TokenType::COMMENT_T, comment_buffer, startPos);
+    return Token(TokenType::COMMENT_T, m_buffer, startPos);
 }
 
 Token Lexer::buildNumber(char character, Position startPos) 
@@ -308,9 +303,52 @@ Token Lexer::buildIdOrKeyword(char character, Position startPos)
     return Token(TokenType::IDENTIFIER_T, identifier, startPos);
 }
 
-Token Lexer::buildString(Position startPos)
+Token Lexer::buildString(char quoteType, Position startPos)
 {
-    return Token{};
+    // NOTE: returned token doesn't store enclosing quotes (don't need them)
+
+    // We'll use the same buffer as the comment handler to (maybe) reuse existing memory
+    // Also the string value length is also technically unlimited
+    m_buffer.clear(); 
+
+    while (true)
+    {
+        char ch = getChar();
+
+        if (m_input.eof())
+            throw LexerException("Unterminated string literal", startPos);
+
+        if (ch == quoteType)
+            break;
+        
+        if (ch == '\n')
+            throw LexerException("Newline in string literal", startPos);
+
+        if (ch == '\\')
+            m_buffer.push_back(handleEscapeSeq(startPos));
+        else
+            m_buffer.push_back(ch);
+    }
+    return Token(TokenType::STR_VALUE_T, m_buffer, startPos);
+}
+
+char Lexer::handleEscapeSeq(Position startPos)
+{
+    char next = getChar();
+    if (m_input.eof())
+        throw LexerException("Unterminated escape sequence at EOF", startPos);
+    
+    switch (next)
+    {
+        case 'n': return '\n';
+        case 't': return '\t';
+        case 'r': return '\r';
+        case '\\': return '\\';
+        case '"': return '"';
+        case '\'': return '\'';
+        default:
+            return next;
+    }
 }
 
 Token Lexer::getToken()
@@ -321,11 +359,14 @@ Token Lexer::getToken()
     do
     {
         character = getChar();
+        if (m_input.eof())
+            return Token(TokenType::EOT);
         if (character == '\n')
-            return Token{TokenType::NEWLINE_T, character, currentPos};
+            return Token(TokenType::NEWLINE_T, character, currentPos);
     } while (std::isspace(character));
 
     // Backslash signals line continuation
+    // TODO: Add stray backlash error check (if there's anything but a newline behind it)
     if (character == '\\')
     {
         do
@@ -374,17 +415,16 @@ Token Lexer::getToken()
         case '[': return Token(TokenType::L_SQUARE_T, "[", startPos);
         case ']': return Token(TokenType::R_SQUARE_T, "]", startPos);
 
-        case '\'': return Lexer::buildString(startPos);
-        case '"': return Lexer::buildString(startPos);
+        case '\'':
+        case '"': 
+            return Lexer::buildString(character, startPos);
+
         case '#': return Lexer::handleComment(startPos);
 
         // For building flp values that start with . (like .314)
         case '.':
             if (std::isdigit(m_input.peek()))
                 return Token(TokenType::FLP_VALUE_T, buildDecimal(), startPos);
-        
-        case EOF:
-            return Token(TokenType::EOT, "", startPos);
 
         default:
             if (std::isdigit(character)) 
