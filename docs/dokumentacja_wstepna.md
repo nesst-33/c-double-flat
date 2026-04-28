@@ -9,7 +9,7 @@ Celem projektu jest implementacja języka programowania ogólnego przeznaczenia.
 	- Należy zaimplementować min. 6 różnych operatorów dla kolekcji
 ## Zasady działania języka
 ### Nazywanie zmiennych
-- Identyfikatory zmiennych i funkcji muszą zaczynać się znakiem ASCII. Każdy następny znak może być znakiem ASCII, cyfrą lub znakiem podłogi (\_)
+- Identyfikatory zmiennych i funkcji muszą zaczynać się znakiem ASCII lub podłogą `_`. Każdy następny znak może być znakiem ASCII, cyfrą lub znakiem podłogi (\_)
 	- np. dozwolona jest nazwa `nazwa_zm123`, ale `3nazwa` już nie
 ### Zakresy widoczności zmiennych
 - Długość życia zmiennych opiera się na zakresach określanych przez klamerki ( {} )

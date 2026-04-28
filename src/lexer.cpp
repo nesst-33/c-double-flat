@@ -216,7 +216,7 @@ char Lexer::handleEscapeSeq(Position startPos)
         case '"': return '"';
         case '\'': return '\'';
         default:
-            return next;
+            throw LexerException("Unknown escape sequence", startPos);
     }
 }
 
@@ -313,7 +313,7 @@ Token Lexer::getToken()
         default:
             if (std::isdigit(character)) 
                 return buildNumber(character, startPos);
-            if (std::isalpha(character))
+            if (std::isalpha(character) || character == '_')
                 return buildIdOrKeyword(character, startPos);
             return Token(TokenType::UNKNOWN, std::string(1, character), startPos);
     }
