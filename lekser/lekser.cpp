@@ -115,7 +115,7 @@ public:
 private:
     std::istream& m_input;
     std::string m_buffer{};
-    Position currentPos{1, 0, 0};
+    Position currentPos{1, 0, -1};
     bool lineBreak{false};
 
     char getChar();
@@ -128,6 +128,7 @@ private:
     
     char handleEscapeSeq(Position startPos);
     double buildDecimal();
+    void clearWhitespace();
 
     static const std::unordered_map<std::string_view, TokenType> keyword_map; 
     static const std::unordered_map<std::string_view, TokenType> operator_map;
@@ -351,31 +352,46 @@ char Lexer::handleEscapeSeq(Position startPos)
     }
 }
 
+void Lexer::clearWhitespace()
+{
+    while (true)
+    {
+        char ch = m_input.peek();
+
+        if (std::isspace(ch) && ch != '\n')
+        {
+            getChar();
+            continue;
+        }
+
+        // Backslash signals line continuation
+        if (ch == '\\')
+        {
+            Position startPos = currentPos;
+            getChar();
+
+            // There can only be a newline after a backslash
+            if (getChar() == '\n')
+                continue;
+            else
+                throw LexerException("Stray backslash (no newline after backslash)", startPos);
+        }
+
+        break;
+    }
+}
+
 Token Lexer::getToken()
 {
-    char character{};
-
-    // I have to skip whitespace but still capture newlines
-    do
-    {
-        character = getChar();
-        if (m_input.eof())
-            return Token(TokenType::EOT);
-        if (character == '\n')
-            return Token(TokenType::NEWLINE_T, character, currentPos);
-    } while (std::isspace(character));
-
-    // Backslash signals line continuation
-    // TODO: Add stray backlash error check (if there's anything but a newline behind it)
-    if (character == '\\')
-    {
-        do
-        {
-            character = getChar();
-        } while (std::isspace(character));
-    }
-
+    char character = getChar();
     Position startPos = currentPos;
+
+    if (m_input.eof())
+        return Token(TokenType::EOT);
+    if (character == '\n')
+        return Token(TokenType::NEWLINE_T, '\n', startPos);
+
+    clearWhitespace();
 
     switch (character)
     {
