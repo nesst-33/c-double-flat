@@ -16,7 +16,7 @@ struct Position
 {
     int line{};
     int column{};
-    size_t offset{}; // NOTE: this is a logical character offset; NOT A BYTE OFFSET!
+    int offset{}; // NOTE: this is a logical character offset; NOT A BYTE OFFSET!
 };
 
 class LexerException : public std::runtime_error
@@ -101,7 +101,7 @@ enum class TokenType
 struct Token
 {
     TokenType type;
-    std::variant<std::string_view, int, double> value; 
+    std::variant<std::string, int, double> value; 
     Position position; 
 };
 
@@ -294,11 +294,11 @@ Token Lexer::buildIdOrKeyword(char character, Position startPos)
     }
     
     // Potem próbujemy go dopasować do jakiegoś słowa klucza
-    std::string identifier {identifier_chars};
+    std::string identifier(identifier_chars, i);
     if (auto keyword_iterator = keyword_map.find(identifier); 
             keyword_iterator != keyword_map.end())
     {
-        return Token(keyword_iterator->second, keyword_iterator->first);
+        return Token(keyword_iterator->second, std::string(keyword_iterator->first), startPos);
     }
     
     return Token(TokenType::IDENTIFIER_T, identifier, startPos);
@@ -383,6 +383,8 @@ void Lexer::clearWhitespace()
 
 Token Lexer::getToken()
 {
+    clearWhitespace();
+
     char character = getChar();
     Position startPos = currentPos;
 
@@ -390,8 +392,6 @@ Token Lexer::getToken()
         return Token(TokenType::EOT);
     if (character == '\n')
         return Token(TokenType::NEWLINE_T, '\n', startPos);
-
-    clearWhitespace();
 
     switch (character)
     {
