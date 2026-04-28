@@ -9,6 +9,8 @@ struct Position
     int line{};
     int column{};
     int offset{}; // NOTE: this is a logical character offset; NOT A BYTE OFFSET!
+
+    bool operator==(const Position&) const = default;
 };
 
 enum class TokenType
@@ -82,6 +84,8 @@ struct Token
     TokenType type;
     std::variant<std::string, int, double> value; 
     Position position; 
+
+    bool operator==(const Token&) const = default;
 };
 
 #endif

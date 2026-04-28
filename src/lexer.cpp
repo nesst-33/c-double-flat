@@ -13,6 +13,7 @@ const std::unordered_map<std::string_view, TokenType> Lexer::keyword_map = {
     {"void", TokenType::VOID_T},
     {"int", TokenType::INT_T},
     {"flp", TokenType::FLP_T},
+    {"str", TokenType::STR_T},
     {"arr", TokenType::ARR_T},
     {"return", TokenType::RETURN_T}
 };
@@ -158,6 +159,7 @@ Token Lexer::buildIdOrKeyword(char character, Position startPos)
         else
             throw LexerException("Identifier too long (max 255 characters)", startPos);
     }
+    // identifier_chars[i] = '\0';
     
     // Potem próbujemy go dopasować do jakiegoś słowa klucza
     std::string identifier(identifier_chars, i);

@@ -24,7 +24,7 @@ public:
     Position getPosition() const { return currentPos; }
     Token getToken();
 
-private:
+protected:
     std::istream& m_input;
     std::string m_buffer{};
     Position currentPos{1, 0, -1};
