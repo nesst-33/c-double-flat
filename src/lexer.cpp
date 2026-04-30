@@ -1,6 +1,8 @@
 #include "Lexer.h"
 #include <cctype>
+#include <limits>
 
+// TODO: change to array
 const std::unordered_map<std::string_view, TokenType> Lexer::keyword_map = {
     {"if", TokenType::IF_T},
     {"else", TokenType::ELSE_T},
@@ -42,7 +44,7 @@ char Lexer::getChar()
 
     if (lineBreak)
     {
-        lineBreak = false;
+        lineBreak = false; // TODO: nextChar() i getCurrentChar()
         currentPos.line++;
         currentPos.column = 1;
     }
@@ -82,7 +84,7 @@ Token Lexer::handleOperator(char character, Position startPos)
     }
 
     TokenType op_type = operator_map.at(op);
-    return Token(op_type, op, startPos);
+    return Token(op_type, startPos);
 }
 
 
@@ -96,7 +98,7 @@ Token Lexer::handleComment(Position startPos)
     // Whatever the implementation of std::string is, I think C-style reallocation
     // at best would match it, but it would probably be worse
 
-    m_buffer.clear(); 
+    m_buffer.clear(); // TODO: stworzyć lokalnie zmienną i zrobić move
 
     if (m_buffer.capacity() < 64)
         m_buffer.reserve(64);
@@ -104,40 +106,69 @@ Token Lexer::handleComment(Position startPos)
     m_buffer.push_back('#');
 
     while (m_input.peek() != '\n' && m_input.peek() != EOF)
+    {
         m_buffer.push_back(getChar());
+        if (m_buffer.length() > MAX_STR_LEN)
+            throw LexerException("Comment exceeds the max number of characters", startPos);
+    }
 
-    return Token(TokenType::COMMENT_T, m_buffer, startPos);
+    return Token(TokenType::COMMENT_T, startPos, m_buffer);
 }
 
 Token Lexer::buildNumber(char character, Position startPos) 
 {
+    if (!std::isdigit(character))
+        throw LexerException("Invalid digit in integer literal", startPos);
+
     int total {character - '0'};
+    
+    // Needed to calculate the number of digits to avoid needless reading of flp decimal expansion digits
+    int digits{1}; 
 
     while (std::isdigit(m_input.peek()))
     {
+        if (total > std::numeric_limits<int>::max() / 10)
+            throw LexerException("Integer literal exceeds INT_MAX", startPos);
         total *= 10;
-        total += getChar() - '0';
+
+        int nextNum = getChar() - '0';
+        if (total > std::numeric_limits<int>::max() - nextNum)
+            throw LexerException("Integer literal exceeds INT_MAX", startPos);
+
+        total += nextNum;
+        digits++;
     }
     
     if (m_input.peek() == '.')
     {
         getChar();
-        double flp_total = total + buildDecimal();
-        return Token(TokenType::FLP_VALUE_T, flp_total);
+        double flp_total = total + buildDecimal(digits);
+        return Token(TokenType::FLP_VALUE_T, startPos, flp_total);
     }
-    return Token(TokenType::INT_VALUE_T, total, startPos);
+    return Token(TokenType::INT_VALUE_T, startPos, total);
 }
 
 
-double Lexer::buildDecimal()
+double Lexer::buildDecimal(int digits = 0)
 {
     double decimalExpansion {0.0};
     double divisor {10.0};
 
     while (std::isdigit(m_input.peek()))
     {
-        decimalExpansion += (getChar() - '0') / divisor;
-        divisor *= 10;
+        char nextDigit = getChar();
+
+        // We don't need to read any more digits after we hit the limit of accurate
+        // representation. I've added one extra digit for rounding purposes
+        
+        // TODO: add tests for big flp's
+        if (digits <= std::numeric_limits<double>::max_digits10 + 1)
+        {
+            decimalExpansion += (nextDigit - '0') / divisor;
+            divisor *= 10;
+        }
+
+        digits++;
     }
 
     return decimalExpansion;
@@ -145,6 +176,9 @@ double Lexer::buildDecimal()
 
 Token Lexer::buildIdOrKeyword(char character, Position startPos) 
 {
+    if (!std::isalnum(character) && character != '_')
+        throw LexerException("Not a valid identifier or keyword character", startPos);
+
     char identifier_chars[MAX_ID_LEN] = {character};
     int i {1};
     
@@ -157,19 +191,20 @@ Token Lexer::buildIdOrKeyword(char character, Position startPos)
             i++;
         }
         else
+        {
+            while (std::isalnum(m_input.peek()) || m_input.peek() == '_') 
+            { getChar(); }
             throw LexerException("Identifier too long (max 255 characters)", startPos);
+        }
     }
-    // identifier_chars[i] = '\0';
-    
-    // Potem próbujemy go dopasować do jakiegoś słowa klucza
     std::string identifier(identifier_chars, i);
     if (auto keyword_iterator = keyword_map.find(identifier); 
             keyword_iterator != keyword_map.end())
     {
-        return Token(keyword_iterator->second, std::string(keyword_iterator->first), startPos);
+        return Token(keyword_iterator->second, startPos);
     }
     
-    return Token(TokenType::IDENTIFIER_T, identifier, startPos);
+    return Token(TokenType::IDENTIFIER_T, startPos, identifier);
 }
 
 Token Lexer::buildString(char quoteType, Position startPos)
@@ -178,18 +213,15 @@ Token Lexer::buildString(char quoteType, Position startPos)
 
     // We'll use the same buffer as the comment handler to (maybe) reuse existing memory
     // Also the string value length is also technically unlimited
-    m_buffer.clear(); 
 
-    while (true)
+    m_buffer.clear();  // TODO: stworzyć lokalnie zmienną i zrobić move
+
+    char ch = getChar();
+    while (ch != quoteType)
     {
-        char ch = getChar();
-
         if (m_input.eof())
-            throw LexerException("Unterminated string literal", startPos);
+            throw LexerException("Unfinished string literal", startPos);
 
-        if (ch == quoteType)
-            break;
-        
         if (ch == '\n')
             throw LexerException("Newline in string literal", startPos);
 
@@ -197,15 +229,19 @@ Token Lexer::buildString(char quoteType, Position startPos)
             m_buffer.push_back(handleEscapeSeq(startPos));
         else
             m_buffer.push_back(ch);
+
+        if (m_buffer.length() > MAX_STR_LEN)
+            throw LexerException("String literal length exceeds the max number of character", startPos);
+        ch = getChar();
     }
-    return Token(TokenType::STR_VALUE_T, m_buffer, startPos);
+    return Token(TokenType::STR_VALUE_T, startPos, m_buffer);
 }
 
 char Lexer::handleEscapeSeq(Position startPos)
 {
     char next = getChar();
     if (m_input.eof())
-        throw LexerException("Unterminated escape sequence at EOF", startPos);
+        throw LexerException("Incomplete escape sequence at EOF", startPos);
     
     switch (next)
     {
@@ -253,8 +289,10 @@ void Lexer::clearWhitespace()
     }
 }
 
+
 Token Lexer::getToken()
 {
+    // TODO: break out into smaller functions
     clearWhitespace();
 
     char character = getChar();
@@ -263,7 +301,7 @@ Token Lexer::getToken()
     if (m_input.eof())
         return Token(TokenType::EOT);
     if (character == '\n')
-        return Token(TokenType::NEWLINE_T, "\n", startPos);
+        return Token(TokenType::NEWLINE_T, startPos);
 
     switch (character)
     {
@@ -276,32 +314,32 @@ Token Lexer::getToken()
             return handleOperator(character, startPos);
 
         case '<':
-            if (match('<')) return Token(TokenType::APPEND_T, "<<", startPos);
-            if (match('=')) return Token(TokenType::LESSER_EQ_T, "<=", startPos);
-            return Token(TokenType::LESSER_T, "<", startPos);
+            if (match('<')) return Token(TokenType::APPEND_T, startPos);
+            if (match('=')) return Token(TokenType::LESSER_EQ_T, startPos);
+            return Token(TokenType::LESSER_T, startPos);
             
         case '>':
-            if (match('>')) return Token(TokenType::EXTRACT_T, ">>", startPos);
-            if (match('=')) return Token(TokenType::GREATER_EQ_T, ">=", startPos);
-            return Token(TokenType::GREATER_T, ">", startPos);
+            if (match('>')) return Token(TokenType::EXTRACT_T, startPos);
+            if (match('=')) return Token(TokenType::GREATER_EQ_T, startPos);
+            return Token(TokenType::GREATER_T, startPos);
 
         case '=':
-            if (match('=')) return Token(TokenType::EQ_T, "==", startPos);
-            return Token(TokenType::ASSIGN_T, "=", startPos);
+            if (match('=')) return Token(TokenType::EQ_T, startPos);
+            return Token(TokenType::ASSIGN_T, startPos);
 
         case '!':
-            if (match('=')) return Token(TokenType::NOT_EQ_T, "!=", startPos);
-            return Token(TokenType::CARDINALITY_T, "!", startPos);
+            if (match('=')) return Token(TokenType::NOT_EQ_T, startPos);
+            return Token(TokenType::CARDINALITY_T, startPos);
         
-        case ':': return Token(TokenType::SPLIT_T, ":", startPos);
-        case '&': return Token(TokenType::CONJUN_T, "&", startPos);
-        case ',': return Token(TokenType::COMMA_T, ",", startPos);
-        case '(': return Token(TokenType::L_BRACKET_T, "(", startPos);
-        case ')': return Token(TokenType::R_BRACKET_T, ")", startPos);
-        case '{': return Token(TokenType::L_BRACE_T, "{", startPos);
-        case '}': return Token(TokenType::R_BRACE_T, "}", startPos);
-        case '[': return Token(TokenType::L_SQUARE_T, "[", startPos);
-        case ']': return Token(TokenType::R_SQUARE_T, "]", startPos);
+        case ':': return Token(TokenType::SPLIT_T, startPos);
+        case '&': return Token(TokenType::CONJUN_T, startPos);
+        case ',': return Token(TokenType::COMMA_T, startPos);
+        case '(': return Token(TokenType::L_BRACKET_T, startPos);
+        case ')': return Token(TokenType::R_BRACKET_T, startPos);
+        case '{': return Token(TokenType::L_BRACE_T, startPos);
+        case '}': return Token(TokenType::R_BRACE_T, startPos);
+        case '[': return Token(TokenType::L_SQUARE_T, startPos);
+        case ']': return Token(TokenType::R_SQUARE_T, startPos);
 
         case '\'':
         case '"': 
@@ -312,14 +350,14 @@ Token Lexer::getToken()
         // For building flp values that start with . (like .314)
         case '.':
             if (std::isdigit(m_input.peek()))
-                return Token(TokenType::FLP_VALUE_T, buildDecimal(), startPos);
+                return Token(TokenType::FLP_VALUE_T, startPos, buildDecimal());
 
         default:
             if (std::isdigit(character)) 
                 return buildNumber(character, startPos);
             if (std::isalpha(character) || character == '_')
                 return buildIdOrKeyword(character, startPos);
-            return Token(TokenType::UNKNOWN, std::string(1, character), startPos);
+            return Token(TokenType::UNKNOWN, startPos, std::string(1, character));
     }
 }
 

@@ -24,12 +24,16 @@ public:
     Position getPosition() const { return currentPos; }
     Token getToken();
 
-protected:
+private:
     std::istream& m_input;
     std::string m_buffer{};
     Position currentPos{1, 0, -1};
+    // TODO: startPos
     bool lineBreak{false};
     static constexpr int MAX_ID_LEN = 255;
+
+    // arbitrary maximum string literal/single line comment length (ex. to avoid DOS)
+    static constexpr int MAX_STR_LEN = 1024;
 
     char getChar();
     bool match(char character);
@@ -40,7 +44,7 @@ protected:
     Token buildString(char quoteType, Position startPos);
     
     char handleEscapeSeq(Position startPos);
-    double buildDecimal();
+    double buildDecimal(int digits);
     void clearWhitespace();
 
     static const std::unordered_map<std::string_view, TokenType> keyword_map; 

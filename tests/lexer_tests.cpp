@@ -31,48 +31,48 @@ void expectDoubleToken(Lexer& lexer, double expectedVal)
 // Basic parsing verification
 TEST(BasicLexerTests, ParsesSingleCharOperators)
 {
-    std::istringstream input("+ - * / % ~ < > = ! : & , ( ) { } [ ]");
-    Lexer lexer(input);
+    std::istringstream input("+ - * / % ~ < > = ! : & , ( ) { } [ ]"); 
+    Lexer lexer(input); // TODO: różne leksery na każdy operator + EOF
 
-    expectStringToken(lexer, TokenType::PLUS_T, "+");
-    expectStringToken(lexer, TokenType::MINUS_T, "-");
-    expectStringToken(lexer, TokenType::MULT_T, "*");
-    expectStringToken(lexer, TokenType::DIV_T, "/");
-    expectStringToken(lexer, TokenType::MOD_T, "%");
-    expectStringToken(lexer, TokenType::CONCAT_T, "~");
-    expectStringToken(lexer, TokenType::LESSER_T, "<");
-    expectStringToken(lexer, TokenType::GREATER_T, ">");
-    expectStringToken(lexer, TokenType::ASSIGN_T, "=");
-    expectStringToken(lexer, TokenType::CARDINALITY_T, "!");
-    expectStringToken(lexer, TokenType::SPLIT_T, ":");
-    expectStringToken(lexer, TokenType::CONJUN_T, "&");
-    expectStringToken(lexer, TokenType::COMMA_T, ",");
-    expectStringToken(lexer, TokenType::L_BRACKET_T, "(");
-    expectStringToken(lexer, TokenType::R_BRACKET_T, ")");
-    expectStringToken(lexer, TokenType::L_BRACE_T, "{");
-    expectStringToken(lexer, TokenType::R_BRACE_T, "}");
-    expectStringToken(lexer, TokenType::L_SQUARE_T, "[");
-    expectStringToken(lexer, TokenType::R_SQUARE_T, "]");
+    EXPECT_EQ(lexer.getToken().type, TokenType::PLUS_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::MINUS_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::MULT_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::DIV_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::MOD_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::CONCAT_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::LESSER_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::GREATER_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::ASSIGN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::CARDINALITY_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::SPLIT_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::CONJUN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::COMMA_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::L_BRACKET_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::R_BRACKET_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::L_BRACE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::R_BRACE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::L_SQUARE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::R_SQUARE_T);
     EXPECT_EQ(lexer.getToken().type, TokenType::EOT);
 }
 
 TEST(BasicLexerTests, ParsesDoubleCharOperators)
 {
-    std::istringstream input("+= -= *= /= %= ~= << >> <= >= == !=");
+    std::istringstream input("+= -= *= /= %= ~= << >> <= >= == !="); 
     Lexer lexer(input);
 
-    expectStringToken(lexer, TokenType::ADD_ASSIGN_T, "+=");
-    expectStringToken(lexer, TokenType::SUB_ASSIGN_T, "-=");
-    expectStringToken(lexer, TokenType::MULT_ASSIGN_T, "*=");
-    expectStringToken(lexer, TokenType::DIV_ASSIGN_T, "/=");
-    expectStringToken(lexer, TokenType::MOD_ASSIGN_T, "%=");
-    expectStringToken(lexer, TokenType::CONCAT_ASSIGN_T, "~=");
-    expectStringToken(lexer, TokenType::APPEND_T, "<<");
-    expectStringToken(lexer, TokenType::EXTRACT_T, ">>");
-    expectStringToken(lexer, TokenType::LESSER_EQ_T, "<=");
-    expectStringToken(lexer, TokenType::GREATER_EQ_T, ">=");
-    expectStringToken(lexer, TokenType::EQ_T, "==");
-    expectStringToken(lexer, TokenType::NOT_EQ_T, "!=");
+    EXPECT_EQ(lexer.getToken().type, TokenType::ADD_ASSIGN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::SUB_ASSIGN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::MULT_ASSIGN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::DIV_ASSIGN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::MOD_ASSIGN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::CONCAT_ASSIGN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::APPEND_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::EXTRACT_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::LESSER_EQ_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::GREATER_EQ_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::EQ_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::NOT_EQ_T);
     EXPECT_EQ(lexer.getToken().type, TokenType::EOT);
 }
 
@@ -81,20 +81,20 @@ TEST(BasicLexerTests, ParsesKeywords)
     std::istringstream input("if else while const as and or not void int flp str arr return");
     Lexer lexer(input);
 
-    expectStringToken(lexer, TokenType::IF_T, "if");
-    expectStringToken(lexer, TokenType::ELSE_T, "else");
-    expectStringToken(lexer, TokenType::WHILE_T, "while");
-    expectStringToken(lexer, TokenType::CONST_T, "const");
-    expectStringToken(lexer, TokenType::AS_T, "as");
-    expectStringToken(lexer, TokenType::AND_T, "and");
-    expectStringToken(lexer, TokenType::OR_T, "or");
-    expectStringToken(lexer, TokenType::NOT_T, "not");
-    expectStringToken(lexer, TokenType::VOID_T, "void");
-    expectStringToken(lexer, TokenType::INT_T, "int");
-    expectStringToken(lexer, TokenType::FLP_T, "flp");
-    expectStringToken(lexer, TokenType::STR_T, "str");
-    expectStringToken(lexer, TokenType::ARR_T, "arr");
-    expectStringToken(lexer, TokenType::RETURN_T, "return");
+    EXPECT_EQ(lexer.getToken().type, TokenType::IF_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::ELSE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::WHILE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::CONST_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::AS_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::AND_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::OR_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::NOT_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::VOID_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::INT_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::FLP_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::STR_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::ARR_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::RETURN_T);
 }
 
 TEST(BasicLexerTests, ParsesIdentifiers) 
@@ -123,6 +123,7 @@ TEST(BasicLexerTests, ParsesIntegers)
 
 TEST(BasicLexerTests, ParsesFlp)
 {
+    // TODO: add tests for big flp
     std::istringstream input("3.14 0.0001 42. .31");
     Lexer lexer(input);
 
@@ -164,26 +165,27 @@ TEST(BasicLexerTests, SkipsWhitespaceButNotNewline)
     Lexer lexer(input);
 
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "x");
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "y");
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
     EXPECT_EQ(lexer.getToken().type, TokenType::EOT);
 }
 
 TEST(BasicLexerTests, HandlesComments)
 {
+    // TODO: Sprawdzić czy działa brak nowej linii po komentarzu
     std::istringstream input("x = 5 # Ciekawy komentarz 3 * 5\ny = 10");
     Lexer lexer(input);
 
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "x");
-    expectStringToken(lexer, TokenType::ASSIGN_T, "=");
+    EXPECT_EQ(lexer.getToken().type, TokenType::ASSIGN_T);
     expectIntToken(lexer, 5);
     
     expectStringToken(lexer, TokenType::COMMENT_T, "# Ciekawy komentarz 3 * 5");
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
     
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "y");
-    expectStringToken(lexer, TokenType::ASSIGN_T, "=");
+    EXPECT_EQ(lexer.getToken().type, TokenType::ASSIGN_T);
     expectIntToken(lexer, 10);
 }
 
@@ -214,10 +216,10 @@ TEST(BasicLexerTests, HandlesLineContinuation)
     Lexer lexer(input);
 
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "x");
-    expectStringToken(lexer, TokenType::ASSIGN_T, "=");
+    EXPECT_EQ(lexer.getToken().type, TokenType::ASSIGN_T);
     expectIntToken(lexer, 5);
     
-    expectStringToken(lexer, TokenType::PLUS_T, "+");
+    EXPECT_EQ(lexer.getToken().type, TokenType::PLUS_T);
     expectIntToken(lexer, 2);
     EXPECT_EQ(lexer.getToken().type, TokenType::EOT);
 }
@@ -301,128 +303,128 @@ TEST(LexerIntegrationTests, ProcessesSampleSourceFile)
 
     // --- LINE 1 ---
     expectStringToken(lexer, TokenType::COMMENT_T, "# TEST INTEGRACYJNY NR 1");
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
 
     // --- LINE 2 ---
-    expectStringToken(lexer, TokenType::CONST_T, "const");
-    expectStringToken(lexer, TokenType::INT_T, "int");
+    EXPECT_EQ(lexer.getToken().type, TokenType::CONST_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::INT_T);
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "MAX");
-    expectStringToken(lexer, TokenType::ASSIGN_T, "=");
+    EXPECT_EQ(lexer.getToken().type, TokenType::ASSIGN_T);
     expectIntToken(lexer, 100);
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
 
     // --- LINE 3 ---
-    expectStringToken(lexer, TokenType::STR_T, "str");
+    EXPECT_EQ(lexer.getToken().type, TokenType::STR_T);
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "path");
-    expectStringToken(lexer, TokenType::ASSIGN_T, "=");
-    expectStringToken(lexer, TokenType::STR_VALUE_T, "C:\\temp\\file.txt"); // Check escapes!
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::ASSIGN_T);
+    expectStringToken(lexer, TokenType::STR_VALUE_T, "C:\\temp\\file.txt"); 
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
 
-    // --- LINE 4 & 5 (Line Continuation Magic) ---
-    expectStringToken(lexer, TokenType::FLP_T, "flp");
+    // --- LINE 4 & 5 ---
+    EXPECT_EQ(lexer.getToken().type, TokenType::FLP_T);
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "value");
-    expectStringToken(lexer, TokenType::ASSIGN_T, "=");
-    expectDoubleToken(lexer, 0.5); // The leading decimal
+    EXPECT_EQ(lexer.getToken().type, TokenType::ASSIGN_T);
+    expectDoubleToken(lexer, 0.5); 
     
     // The Lexer should swallow the `\ \n` and jump straight to the `+` on line 5
     Token plusToken = lexer.getToken();
     EXPECT_EQ(plusToken.type, TokenType::PLUS_T);
-    EXPECT_EQ(plusToken.position.line, 5); // Verify line counter kept working!
+    EXPECT_EQ(plusToken.position.line, 5); 
     
     expectDoubleToken(lexer, 42.0);
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
 
     // --- LINE 6 ---
-    expectStringToken(lexer, TokenType::IF_T, "if");
-    expectStringToken(lexer, TokenType::L_BRACKET_T, "(");
+    EXPECT_EQ(lexer.getToken().type, TokenType::IF_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::L_BRACKET_T);
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "value");
-    expectStringToken(lexer, TokenType::GREATER_EQ_T, ">=");
+    EXPECT_EQ(lexer.getToken().type, TokenType::GREATER_EQ_T);
     expectIntToken(lexer, 10);
-    expectStringToken(lexer, TokenType::AND_T, "and");
-    expectStringToken(lexer, TokenType::NOT_T, "not");
+    EXPECT_EQ(lexer.getToken().type, TokenType::AND_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::NOT_T);
     expectIntToken(lexer, 0);
-    expectStringToken(lexer, TokenType::OR_T, "or");
+    EXPECT_EQ(lexer.getToken().type, TokenType::OR_T);
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "value");
-    expectStringToken(lexer, TokenType::LESSER_T, "<");
+    EXPECT_EQ(lexer.getToken().type, TokenType::LESSER_T);
     expectIntToken(lexer, 5);
-    expectStringToken(lexer, TokenType::R_BRACKET_T, ")");
-    expectStringToken(lexer, TokenType::L_BRACE_T, "{");
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::R_BRACKET_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::L_BRACE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
 
     // --- LINE 7 ---
-    expectStringToken(lexer, TokenType::ARR_T, "arr");
-    expectStringToken(lexer, TokenType::IDENTIFIER_T, "data");
-    expectStringToken(lexer, TokenType::ASSIGN_T, "=");
-    expectStringToken(lexer, TokenType::L_SQUARE_T, "[");
+    EXPECT_EQ(lexer.getToken().type, TokenType::ARR_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::IDENTIFIER_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::ASSIGN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::L_SQUARE_T);
     expectIntToken(lexer, 1);
-    expectStringToken(lexer, TokenType::COMMA_T, ",");
+    EXPECT_EQ(lexer.getToken().type, TokenType::COMMA_T);
     expectIntToken(lexer, 2);
-    expectStringToken(lexer, TokenType::COMMA_T, ",");
+    EXPECT_EQ(lexer.getToken().type, TokenType::COMMA_T);
     expectIntToken(lexer, 3);
-    expectStringToken(lexer, TokenType::R_SQUARE_T, "]");
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::R_SQUARE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
 
     // --- LINE 8 ---
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "data");
-    expectStringToken(lexer, TokenType::APPEND_T, "<<");
+    EXPECT_EQ(lexer.getToken().type, TokenType::APPEND_T);
     expectIntToken(lexer, 4);
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
 
     // --- LINE 9 ---
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "data");
-    expectStringToken(lexer, TokenType::L_SQUARE_T, "[");
+    EXPECT_EQ(lexer.getToken().type, TokenType::L_SQUARE_T);
     expectIntToken(lexer, 0);
-    expectStringToken(lexer, TokenType::R_SQUARE_T, "]");
-    expectStringToken(lexer, TokenType::MOD_ASSIGN_T, "%=");
+    EXPECT_EQ(lexer.getToken().type, TokenType::R_SQUARE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::MOD_ASSIGN_T);
     expectIntToken(lexer, 2);
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
 
     // --- LINE 10 ---
-    expectStringToken(lexer, TokenType::RETURN_T, "return");
+    EXPECT_EQ(lexer.getToken().type, TokenType::RETURN_T);
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "value");
-    expectStringToken(lexer, TokenType::AS_T, "as");
-    expectStringToken(lexer, TokenType::INT_T, "int");
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::AS_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::INT_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
 
     // --- LINE 11 ---
-    expectStringToken(lexer, TokenType::R_BRACE_T, "}");
-    expectStringToken(lexer, TokenType::ELSE_T, "else");
-    expectStringToken(lexer, TokenType::L_BRACE_T, "{");
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::R_BRACE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::ELSE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::L_BRACE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
 
     // --- LINE 12 ---
-    expectStringToken(lexer, TokenType::VOID_T, "void");
+    EXPECT_EQ(lexer.getToken().type, TokenType::VOID_T);
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "func");
-    expectStringToken(lexer, TokenType::L_BRACKET_T, "(");
-    expectStringToken(lexer, TokenType::R_BRACKET_T, ")");
-    expectStringToken(lexer, TokenType::L_BRACE_T, "{");
-    expectStringToken(lexer, TokenType::WHILE_T, "while");
-    expectStringToken(lexer, TokenType::L_BRACKET_T, "(");
+    EXPECT_EQ(lexer.getToken().type, TokenType::L_BRACKET_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::R_BRACKET_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::L_BRACE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::WHILE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::L_BRACKET_T);
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "value");
-    expectStringToken(lexer, TokenType::NOT_EQ_T, "!=");
+    EXPECT_EQ(lexer.getToken().type, TokenType::NOT_EQ_T);
     expectIntToken(lexer, 0);
-    expectStringToken(lexer, TokenType::R_BRACKET_T, ")");
+    EXPECT_EQ(lexer.getToken().type, TokenType::R_BRACKET_T);
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "value");
-    expectStringToken(lexer, TokenType::SUB_ASSIGN_T, "-=");
+    EXPECT_EQ(lexer.getToken().type, TokenType::SUB_ASSIGN_T);
     expectIntToken(lexer, 1);
-    expectStringToken(lexer, TokenType::R_BRACE_T, "}");
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::R_BRACE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
 
     // --- LINE 13 ---
-    expectStringToken(lexer, TokenType::R_BRACE_T, "}");
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    EXPECT_EQ(lexer.getToken().type, TokenType::R_BRACE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
 
-    // --- LINE 14 (Remaining Operators) ---
-    expectStringToken(lexer, TokenType::CONCAT_T, "~");
-    expectStringToken(lexer, TokenType::CONCAT_ASSIGN_T, "~=");
-    expectStringToken(lexer, TokenType::DIV_T, "/");
-    expectStringToken(lexer, TokenType::DIV_ASSIGN_T, "/=");
-    expectStringToken(lexer, TokenType::MULT_T, "*");
-    expectStringToken(lexer, TokenType::MULT_ASSIGN_T, "*=");
-    expectStringToken(lexer, TokenType::EXTRACT_T, ">>");
-    expectStringToken(lexer, TokenType::EQ_T, "==");
-    expectStringToken(lexer, TokenType::CARDINALITY_T, "!");
-    expectStringToken(lexer, TokenType::NEWLINE_T, "\n");
+    // --- LINE 14 ---
+    EXPECT_EQ(lexer.getToken().type, TokenType::CONCAT_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::CONCAT_ASSIGN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::DIV_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::DIV_ASSIGN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::MULT_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::MULT_ASSIGN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::EXTRACT_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::EQ_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::CARDINALITY_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
     
     // --- EOF ---
     EXPECT_EQ(lexer.getToken().type, TokenType::EOT);

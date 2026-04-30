@@ -4,6 +4,8 @@
 #include <string>
 #include <variant>
 
+// TODO: change Position to class
+// TODO: add Position factory methods (changing the position should return a new object)
 struct Position
 {
     int line{};
@@ -79,11 +81,13 @@ enum class TokenType
     UNKNOWN             // Unknown token
 };
 
+// TODO: transform Token into class to disallow disparate types and values
+// TODO: refactor std::variant to be the last attribute (so I don't have to explicitly default-initialize)
 struct Token
 {
     TokenType type;
-    std::variant<std::string, int, double> value; 
     Position position; 
+    std::variant<std::monostate, std::string, int, double> value; 
 
     bool operator==(const Token&) const = default;
 };
