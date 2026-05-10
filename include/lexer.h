@@ -17,12 +17,21 @@ private:
     Position m_pos;
 };
 
-class Lexer
+
+class ILexer 
+{
+public:
+    virtual Token getToken() = 0;
+    virtual Position getPosition() const = 0;
+    virtual ~ILexer() = default;
+};
+
+class Lexer : public ILexer
 {
 public:
     Lexer(std::istream& input) : m_input(input) {}
-    Position getPosition() const { return currentPos; }
-    Token getToken();
+    Position getPosition() const override { return currentPos; }
+    Token getToken() override;
 
 private:
     std::istream& m_input;
