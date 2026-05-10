@@ -5,6 +5,7 @@
 #include <initializer_list>
 #include <memory>
 #include "Lexer.h"
+#include "Token.h"
 
 class ErrorHandler {
 public:
@@ -23,8 +24,39 @@ private:
 class Node {
 };
 
-class LogicalAnd : public Node {
+class Additive : public Node {
 
+};
+
+class ArrayOps : public Node {
+private:
+};
+
+class Relational : public Node {
+public:
+    Relational(std::unique_ptr<ArrayOps> leftArrOp,
+            std::unique_ptr<ArrayOps> rightArrOp)
+        : m_leftArrOp(std::move(leftArrOp))
+        , m_rightArrOp(std::move(rightArrOp)) {}
+private:
+    std::unique_ptr<ArrayOps> m_leftArrOp, m_rightArrOp;
+};
+
+class Equality : public Node {
+public:
+    Equality(std::unique_ptr<Relational> lRelational, std::unique_ptr<Relational> rRelational) 
+    : m_leftRelational(std::move(lRelational)) 
+    , m_rightRelational(std::move(rRelational)) {}
+private:
+    std::unique_ptr<Relational> m_leftRelational, m_rightRelational;
+};
+
+class LogicalAnd : public Node {
+public:
+    LogicalAnd(std::vector<std::unique_ptr<Equality>> equalities)
+        : m_equalities(std::move(equalities)) {}
+private:
+    std::vector<std::unique_ptr<Equality>> m_equalities{};
 };
 
 class Expression : public Node {
@@ -32,7 +64,7 @@ public:
     Expression(std::vector<std::unique_ptr<LogicalAnd>> logicalAnds)
         : m_ands(std::move(logicalAnds)) {}
 private:
-    std::vector<std::unique_ptr<LogicalAnd>> m_ands {};
+    std::vector<std::unique_ptr<LogicalAnd>> m_ands{};
 };
 
 class Statement : public Node {};
@@ -132,36 +164,37 @@ private:
             return nullptr;
         advance();
 
-        if (!check(TokenType::L_BRACKET_T)) 
+        if (!match({TokenType::L_BRACKET_T}))
             error("Missing left bracket", peek().position);
-        advance();
 
         auto condition = parseExpression();
-        if (!condition) {
+        if (!condition) 
             throw SyntaxError("Invalid condition", peek().position);    
-        }
         
-        if (!check(TokenType::R_BRACKET_T)) 
+        if (!match({TokenType::L_BRACKET_T}))
             error("Missing right bracket", peek().position);
-        advance();
 
         match({TokenType::NEWLINE_T});
 
         auto scope = parseScope();
-        if (!scope) {
+        if (!scope) 
             throw SyntaxError("Ill-formed scope", peek().position);
-        }
 
-        if (!check(TokenType::NEWLINE_T))
+        if (!match({TokenType::NEWLINE_T}))
             error("Missing newline", peek().position);
-        advance();
 
         // TODO: add else statement support
         return std::make_unique<IfStmt>(std::move(condition), std::move(scope), nullptr);
-    
     }
     std::unique_ptr<WhileStmt> parseWhileStmt();
-    std::unique_ptr<Scope> parseScope();
+
+    std::unique_ptr<Scope> parseScope() {
+        if (!check(TokenType::L_BRACE_T))
+            return nullptr;
+        advance();
+
+        return nullptr;
+    }
     std::unique_ptr<VarOrFuncDecl> parseVarOrFuncDecl();
     std::unique_ptr<VoidFuncDecl> parseVoidFuncDecl();
     std::unique_ptr<RetStmt> parseRetStmt();
