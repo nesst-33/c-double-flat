@@ -8,9 +8,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include_directories(include)
 
 add_library(LexerLib src/Lexer.cpp)
+add_library(ParserLib src/Parser.cpp)
 
 add_executable(compiler src/main.cpp)
-target_link_libraries(compiler PRIVATE LexerLib)
+target_link_libraries(compiler PRIVATE LexerLib ParserLib)
 
 include(FetchContent)
 FetchContent_Declare(

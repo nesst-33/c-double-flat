@@ -1,11 +1,14 @@
 #ifndef _PARSER_H
 #define _PARSER_H
 
-#include <vector>
+#include <algorithm>
+#include <array>
+#include <functional>
 #include <initializer_list>
 #include <memory>
 #include "Lexer.h"
 #include "Token.h"
+#include "Node.h"
 
 class ErrorHandler {
 public:
@@ -21,164 +24,11 @@ private:
     Position m_pos;
 };
 
-class Node {
-};
-
-class Expression : public Node {
-public:
-    virtual ~Expression() = default;
-};
-
-class BinaryExpr : public Expression {
-    BinaryExpr(std::unique_ptr<Expression> leftFactor, 
-            Position operatorPos, 
-            std::unique_ptr<Expression> rightFactor)
-        : m_leftFactor(std::move(leftFactor))
-        , m_operatorPos(operatorPos)
-        , m_rightFactor(std::move(rightFactor)) {}
-private:
-    std::unique_ptr<Expression> m_leftFactor;
-    Position m_operatorPos;
-    std::unique_ptr<Expression> m_rightFactor;
-};
-
-class AndExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class OrExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class AddExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class SubExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class DivExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class MultExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class ModExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class ConcatExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class SplitExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class ConjunExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class AppendExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class ExtractExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class AsExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class EqExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class NotEqExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class GreatExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class LessExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class GreatEqExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class LessEqExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
-class UnaryExpr: public Expression {
-    UnaryExpr(std::unique_ptr<Expression> factor, Position operatorPos)
-        : m_factor(std::move(factor)), m_operatorPos(operatorPos) {} 
-private:
-    std::unique_ptr<Expression> m_factor;
-    Position m_operatorPos;
-};
-
-
-
-class Statement : public Node {};
-
-class Scope : public Statement {};
-class ElseStmt : public Node {};
-
-class Program : public Node {
-public:
-    Program(std::vector<std::unique_ptr<Statement>> statements) 
-        : m_statements(std::move(statements)) {}
-private:
-    std::vector<std::unique_ptr<Statement>> m_statements{};
-};
-
-
-class IfStmt : public Statement {
-public:
-    IfStmt(std::unique_ptr<Expression> expr, std::unique_ptr<Scope> scope,
-            std::unique_ptr<ElseStmt> elseStmt)
-        : m_expression(std::move(expr)), m_scope(std::move(scope))
-        , m_else(std::move(elseStmt)) {}
-private:
-    std::unique_ptr<Expression> m_expression;
-    std::unique_ptr<Scope> m_scope;
-    std::unique_ptr<ElseStmt> m_else;
-};
-
-class WhileStmt : public Statement {};
-class VarOrFuncDecl : public Statement {};
-class VoidFuncDecl : public Statement {};
-class RetStmt : public Statement {};
-class IdArrFuncCall : public Statement {};
-
+// Do zamiany enum na size_t
+template <typename T>
+constexpr auto to_idx(T e) {
+    return static_cast<std::size_t>(e);
+}
 
 class Parser {
 public:
@@ -188,6 +38,10 @@ public:
         while (currToken.type == TokenType::COMMENT_T)
             currToken = m_lexer.getToken();
     }
+
+    // For use in binaryOpTable
+    using ExprPtr = std::unique_ptr<Expression>;
+    using FactoryFunc = ExprPtr(*)(ExprPtr, ExprPtr);
 
     std::unique_ptr<Program> parseProgram() {
         std::vector<std::unique_ptr<Statement>> statements{};
@@ -202,6 +56,33 @@ public:
 private:
     ILexer& m_lexer;
     Token prevToken{}, currToken{};
+
+    // Czy to na prawdę najlepszy sposób na tablicę lambd?
+    // Binary operator type to class pointer table creation
+    static constexpr std::array<FactoryFunc, to_idx(TokenType::LESSER_EQ_T) + 1> createOpTable() {
+        std::array<FactoryFunc, to_idx(TokenType::LESSER_EQ_T) + 1> table{};
+
+        table[to_idx(TokenType::PLUS_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<AddExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::MINUS_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<SubExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::MULT_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<MultExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::DIV_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<DivExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::MOD_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<ModExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::CONCAT_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<ConcatExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::CONJUN_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<ConjunExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::SPLIT_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<SplitExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::APPEND_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<AppendExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::EXTRACT_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<ExtractExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::GREATER_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<GreatExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::LESSER_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<LessExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::EQ_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<EqExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::NOT_EQ_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<NotEqExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::GREATER_EQ_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<GreatEqExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::LESSER_EQ_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<LessEqExpr>(std::move(l), std::move(r)); };
+        return table;
+    }
+
+    static constexpr auto binaryOpTable = createOpTable();
+
     void error(std::string_view message, Position tokenPos) {}
 
     Token peek() const { return currToken; }
@@ -277,7 +158,51 @@ private:
     std::unique_ptr<RetStmt> parseRetStmt();
     std::unique_ptr<IdArrFuncCall> parseIdArrFuncCall();
 
-    std::unique_ptr<Expression> parseExpression();
+    std::unique_ptr<Expression> parseExpression() {
+        auto leftFactor = parseAndExpr();
+        if (!leftFactor)
+            return nullptr; 
+
+        while(match({TokenType::OR_T}))
+        {
+            Position orPosition = previous().position;
+            auto rightFactor = parseAndExpr();
+            if (!rightFactor)
+                throw SyntaxError("Missing expression after or keyword", peek().position);
+
+            leftFactor = std::make_unique<OrExpr>(std::move(leftFactor),
+                    orPosition, std::move(rightFactor));
+        }
+        return leftFactor;
+    }
+
+    std::unique_ptr<Expression> parseAndExpr() {
+        auto leftFactor = parseEqualityExpr();
+        if (!leftFactor)
+            return nullptr;
+
+        while(match(TokenType::AND_T)) {
+            Position andPosition = previous().position;
+            auto rightFactor = parseEqualityExpr();
+            if (!rightFactor)
+                throw SyntaxError("Missing expression after and keyword", peek().position);
+
+            leftFactor = std::make_unique<AndExpr>(std::move(leftFactor),
+                    andPosition, std::move(rightFactor));
+        }
+
+        return leftFactor;
+    }
+
+    std::unique_ptr<Expression> parseEqualityExpr() {
+        auto leftFactor = parseRelationalExpr();
+        if (!leftFactor)
+            return nullptr;
+
+        return nullptr;
+    }
+
+    std::unique_ptr<Expression> parseRelationalExpr() { return nullptr; }
     
     bool isAtEnd() const { return peek().type == TokenType::EOT; }
 
@@ -299,6 +224,14 @@ private:
     bool check(TokenType type) const {
         if (isAtEnd()) return false;
         return peek().type == type;
+    }
+
+    bool match(TokenType type) {
+        if (check(type)) {
+            advance();
+            return true;
+        }
+        return false;
     }
 
     bool match(std::initializer_list<TokenType> types) {

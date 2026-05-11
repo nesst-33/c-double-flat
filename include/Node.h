@@ -1,5 +1,6 @@
 #include <vector>
 #include <memory>
+#include "Token.h"
 
 class Node {
 };
@@ -12,15 +13,16 @@ public:
 
 // BINARY EXPRESSIONS
 class BinaryExpr : public Expression {
+public:
     BinaryExpr(std::unique_ptr<Expression> leftFactor, 
-            Position operatorPos, 
+            //Position operatorPos, 
             std::unique_ptr<Expression> rightFactor)
         : m_leftFactor(std::move(leftFactor))
-        , m_operatorPos(operatorPos)
+        //, m_operatorPos(operatorPos)
         , m_rightFactor(std::move(rightFactor)) {}
 private:
     std::unique_ptr<Expression> m_leftFactor;
-    Position m_operatorPos;
+    //Position m_operatorPos;
     std::unique_ptr<Expression> m_rightFactor;
 };
 
@@ -128,7 +130,35 @@ private:
     Position m_operatorPos;
 };
 
+class PositiveExpr : public UnaryExpr {
+public:
+    using UnaryExpr::UnaryExpr;
+};
 
+class NegativeExpr : public UnaryExpr {
+public:
+    using UnaryExpr::UnaryExpr;
+};
+
+class NotExpr : public UnaryExpr {
+public:
+    using UnaryExpr::UnaryExpr;
+};
+
+class CardinalityExpr : public UnaryExpr {
+public:
+    using UnaryExpr::UnaryExpr;
+};
+
+// FUNCTION CALLS, ARRAY CALL, IDENTIFIERS
+class FuncCall : public Expression {
+public:
+    FuncCall(std::string name, std::vector<std::unique_ptr<Expression>> arguments)
+        : m_name(name), m_arguments(std::move(arguments)) {}
+private:
+    std::string m_name;
+    std::vector<std::unique_ptr<Expression>> m_arguments;
+};
 
 class Statement : public Node {};
 
