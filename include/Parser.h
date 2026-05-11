@@ -6,6 +6,7 @@
 #include <functional>
 #include <initializer_list>
 #include <memory>
+#include <utility>
 #include "Lexer.h"
 #include "Token.h"
 #include "Node.h"
@@ -30,6 +31,15 @@ constexpr auto to_idx(T e) {
     return static_cast<std::size_t>(e);
 }
 
+class Parser;
+
+template <typename T>
+constexpr auto makeBinOpFactory() {
+    return [](std::unique_ptr<Expression> l, Position p, std::unique_ptr<Expression> r) -> std::unique_ptr<Expression> {
+        return std::make_unique<T>(std::move(l), p, std::move(r));
+    };
+}
+
 class Parser {
 public:
     Parser(ILexer& lexer) : m_lexer(lexer)
@@ -39,9 +49,10 @@ public:
             currToken = m_lexer.getToken();
     }
 
-    // For use in binaryOpTable
+    // For use in binaryOpTypeToObject
     using ExprPtr = std::unique_ptr<Expression>;
-    using FactoryFunc = ExprPtr(*)(ExprPtr, ExprPtr);
+    using BinOpFactory = ExprPtr(*)(ExprPtr, Position, ExprPtr);
+    using UnaryOpFactory = ExprPtr(*)(ExprPtr, Position);
 
     std::unique_ptr<Program> parseProgram() {
         std::vector<std::unique_ptr<Statement>> statements{};
@@ -59,33 +70,38 @@ private:
 
     // Czy to na prawdę najlepszy sposób na tablicę lambd?
     // Binary operator type to class pointer table creation
-    // TODO: restructure TokenType to save on memory
-    static constexpr std::array<FactoryFunc, to_idx(TokenType::UNKNOWN)> createOpTable() {
-        std::array<FactoryFunc, to_idx(TokenType::UNKNOWN)> table{};
+    static constexpr std::array<BinOpFactory, to_idx(TokenType::UNKNOWN)> createBinOpTable() {
+        using std::make_unique;
+        using std::move;
 
-        table[to_idx(TokenType::PLUS_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<AddExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::MINUS_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<SubExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::MULT_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<MultExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::DIV_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<DivExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::MOD_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<ModExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::CONCAT_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<ConcatExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::CONJUN_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<ConjunExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::SPLIT_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<SplitExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::APPEND_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<AppendExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::EXTRACT_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<ExtractExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::GREATER_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<GreatExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::LESSER_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<LessExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::EQ_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<EqExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::NOT_EQ_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<NotEqExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::GREATER_EQ_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<GreatEqExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::LESSER_EQ_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<LessEqExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::AND_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<AndExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::OR_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<OrExpr>(std::move(l), std::move(r)); };
-        table[to_idx(TokenType::AS_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<AsExpr>(std::move(l), std::move(r)); };
+        std::array<BinOpFactory, to_idx(TokenType::UNKNOWN)> table{};
+
+        table[to_idx(TokenType::PLUS_T)] = makeBinOpFactory<AddExpr>(); 
+        table[to_idx(TokenType::MINUS_T)] = makeBinOpFactory<SubExpr>(); 
+        table[to_idx(TokenType::MULT_T)] = makeBinOpFactory<MultExpr>(); 
+        table[to_idx(TokenType::DIV_T)] = makeBinOpFactory<DivExpr>(); 
+        table[to_idx(TokenType::MOD_T)] = makeBinOpFactory<ModExpr>(); 
+        table[to_idx(TokenType::CONCAT_T)] = makeBinOpFactory<ConcatExpr>(); 
+        table[to_idx(TokenType::CONJUN_T)] = makeBinOpFactory<ConjunExpr>(); 
+        table[to_idx(TokenType::SPLIT_T)] = makeBinOpFactory<SplitExpr>(); 
+        table[to_idx(TokenType::APPEND_T)] = makeBinOpFactory<AppendExpr>(); 
+        table[to_idx(TokenType::EXTRACT_T)] = makeBinOpFactory<ExtractExpr>(); 
+        table[to_idx(TokenType::GREATER_T)] = makeBinOpFactory<GreatExpr>(); 
+        table[to_idx(TokenType::LESSER_T)] = makeBinOpFactory<LessExpr>(); 
+        table[to_idx(TokenType::EQ_T)] = makeBinOpFactory<EqExpr>(); 
+        table[to_idx(TokenType::NOT_EQ_T)] = makeBinOpFactory<NotEqExpr>(); 
+        table[to_idx(TokenType::GREATER_EQ_T)] = makeBinOpFactory<GreatEqExpr>(); 
+        table[to_idx(TokenType::LESSER_EQ_T)] = makeBinOpFactory<LessEqExpr>(); 
+        table[to_idx(TokenType::AND_T)] = makeBinOpFactory<AndExpr>(); 
+        table[to_idx(TokenType::OR_T)] = makeBinOpFactory<OrExpr>(); 
+        table[to_idx(TokenType::AS_T)] = makeBinOpFactory<AsExpr>(); 
+
         return table;
     }
 
-    static constexpr auto binaryOpTable = createOpTable();
+    
+
+    static inline const auto binaryOpTypeToObject = createBinOpTable();
 
     void error(std::string_view message, Position tokenPos) {}
 
@@ -172,14 +188,14 @@ private:
             Position orPosition = previous().position;
             auto rightFactor = parseAndExpr();
             if (!rightFactor)
-                throw SyntaxError("Missing expression after or keyword", peek().position);
+                throw SyntaxError("Missing expression after 'or' keyword", peek().position);
 
-            leftFactor = std::make_unique<OrExpr>(std::move(leftFactor),
-                    orPosition, std::move(rightFactor));
+            leftFactor = binaryOpTypeToObject[to_idx(TokenType::OR_T)](std::move(leftFactor), orPosition, std::move(rightFactor));
         }
         return leftFactor;
     }
 
+    // Uogólnić do parseBinaryOp()??
     std::unique_ptr<Expression> parseAndExpr() {
         auto leftFactor = parseEqualityExpr();
         if (!leftFactor)
@@ -189,10 +205,9 @@ private:
             Position andPosition = previous().position;
             auto rightFactor = parseEqualityExpr();
             if (!rightFactor)
-                throw SyntaxError("Missing expression after and keyword", peek().position);
+                throw SyntaxError("Missing expression after 'and' keyword", peek().position);
 
-            leftFactor = std::make_unique<AndExpr>(std::move(leftFactor),
-                    andPosition, std::move(rightFactor));
+            leftFactor = binaryOpTypeToObject[to_idx(TokenType::AND_T)](std::move(leftFactor), andPosition, std::move(rightFactor));
         }
 
         return leftFactor;
@@ -203,10 +218,98 @@ private:
         if (!leftFactor)
             return nullptr;
 
-        return nullptr;
+        if (match({TokenType::EQ_T, TokenType::NOT_EQ_T})) {
+            TokenType eqType = previous().type;
+            Position eqPosition = previous().position;
+            auto rightFactor = parseRelationalExpr();
+            if (!rightFactor)
+                throw SyntaxError("Missing expression after equality operator", peek().position);
+            leftFactor = binaryOpTypeToObject[to_idx(eqType)](std::move(leftFactor), eqPosition, std::move(rightFactor));
+        }
+
+        return leftFactor;
     }
 
-    std::unique_ptr<Expression> parseRelationalExpr() { return nullptr; }
+    std::unique_ptr<Expression> parseRelationalExpr() {
+        auto leftFactor = parseArrayOpsExpr();
+        if (!leftFactor)
+            return nullptr;
+
+        if (match({TokenType::LESSER_T, TokenType::LESSER_EQ_T, TokenType::GREATER_T, TokenType::GREATER_EQ_T})) {
+            TokenType relType = previous().type;
+            Position eqPosition = previous().position;
+            auto rightFactor = parseArrayOpsExpr();
+            if (!rightFactor)
+                throw SyntaxError("Missing expression after inequality operator", peek().position);
+            leftFactor = binaryOpTypeToObject[to_idx(relType)](std::move(leftFactor), eqPosition, std::move(rightFactor));
+        }
+
+        return leftFactor;
+    }
+
+    std::unique_ptr<Expression> parseArrayOpsExpr() {
+        auto leftFactor = parseAdditiveExpr();
+        if(!leftFactor)
+            return nullptr;
+
+        while (match({TokenType::CONCAT_T, TokenType::CONJUN_T, TokenType::SPLIT_T, TokenType::APPEND_T, TokenType::EXTRACT_T})) {
+            TokenType arrOpType = previous().type;
+            Position arrOpPosition = previous().position;
+            auto rightFactor = parseAdditiveExpr();
+            if (!rightFactor)
+                throw SyntaxError("Missing expression after array operator", peek().position);
+            leftFactor = binaryOpTypeToObject[to_idx(arrOpType)](std::move(leftFactor), arrOpPosition, std::move(rightFactor));
+        }
+
+        return leftFactor;
+    }
+
+    std::unique_ptr<Expression> parseAdditiveExpr() {
+        auto leftFactor = parseMultiplExpr();
+        if (!leftFactor)
+            return nullptr;
+        
+        while (match({TokenType::PLUS_T, TokenType::MINUS_T})) {
+            TokenType addType = previous().type;
+            Position addPosition = previous().position;
+            auto rightFactor = parseMultiplExpr();
+            if (!rightFactor)
+                throw SyntaxError("Missing expression after additive operator", peek().position);
+            leftFactor = binaryOpTypeToObject[to_idx(addType)](std::move(leftFactor), addPosition, std::move(rightFactor));
+        }
+
+        return leftFactor;
+    }
+
+    std::unique_ptr<Expression> parseMultiplExpr() {
+        auto leftFactor = parseUnaryExpr();
+        if (!leftFactor)
+            return nullptr;
+
+        while (match({TokenType::MULT_T, TokenType::DIV_T, TokenType::MOD_T})) {
+            TokenType multType = previous().type;
+            Position multPosition = previous().position;
+            auto rightFactor = parseMultiplExpr();
+            if (!rightFactor)
+                throw SyntaxError("Missing experssion after multiplicative operator", peek().position);
+            leftFactor = binaryOpTypeToObject[to_idx(multType)](std::move(leftFactor), multPosition, std::move(rightFactor));
+        }
+    }
+
+    std::unique_ptr<Expression> parseUnaryExpr() {
+        if (match({TokenType::PLUS_T, TokenType::MINUS_T, TokenType::NOT_T})) {
+            TokenType unaryType = previous().type;
+            Position unaryPosition = previous().position;
+            auto factor = parsePostfix();
+            if (!factor) 
+                throw SyntaxError("Stray operator", unaryPosition);
+            
+        }
+    }
+
+    std::unique_ptr<Expression> parsePostfix() {
+        return nullptr;
+    }
     
     bool isAtEnd() const { return peek().type == TokenType::EOT; }
 

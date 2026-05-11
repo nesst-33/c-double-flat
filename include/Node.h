@@ -15,14 +15,14 @@ public:
 class BinaryExpr : public Expression {
 public:
     BinaryExpr(std::unique_ptr<Expression> leftFactor, 
-            //Position operatorPos, 
+            Position operatorPos, 
             std::unique_ptr<Expression> rightFactor)
         : m_leftFactor(std::move(leftFactor))
-        //, m_operatorPos(operatorPos)
+        , m_operatorPos(operatorPos)
         , m_rightFactor(std::move(rightFactor)) {}
 private:
     std::unique_ptr<Expression> m_leftFactor;
-    //Position m_operatorPos;
+    Position m_operatorPos;
     std::unique_ptr<Expression> m_rightFactor;
 };
 
