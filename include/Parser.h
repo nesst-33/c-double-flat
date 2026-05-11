@@ -24,48 +24,128 @@ private:
 class Node {
 };
 
-class Additive : public Node {
-
-};
-
-class ArrayOps : public Node {
-private:
-};
-
-class Relational : public Node {
-public:
-    Relational(std::unique_ptr<ArrayOps> leftArrOp,
-            std::unique_ptr<ArrayOps> rightArrOp)
-        : m_leftArrOp(std::move(leftArrOp))
-        , m_rightArrOp(std::move(rightArrOp)) {}
-private:
-    std::unique_ptr<ArrayOps> m_leftArrOp, m_rightArrOp;
-};
-
-class Equality : public Node {
-public:
-    Equality(std::unique_ptr<Relational> lRelational, std::unique_ptr<Relational> rRelational) 
-    : m_leftRelational(std::move(lRelational)) 
-    , m_rightRelational(std::move(rRelational)) {}
-private:
-    std::unique_ptr<Relational> m_leftRelational, m_rightRelational;
-};
-
-class LogicalAnd : public Node {
-public:
-    LogicalAnd(std::vector<std::unique_ptr<Equality>> equalities)
-        : m_equalities(std::move(equalities)) {}
-private:
-    std::vector<std::unique_ptr<Equality>> m_equalities{};
-};
-
 class Expression : public Node {
 public:
-    Expression(std::vector<std::unique_ptr<LogicalAnd>> logicalAnds)
-        : m_ands(std::move(logicalAnds)) {}
-private:
-    std::vector<std::unique_ptr<LogicalAnd>> m_ands{};
+    virtual ~Expression() = default;
 };
+
+class BinaryExpr : public Expression {
+    BinaryExpr(std::unique_ptr<Expression> leftFactor, 
+            Position operatorPos, 
+            std::unique_ptr<Expression> rightFactor)
+        : m_leftFactor(std::move(leftFactor))
+        , m_operatorPos(operatorPos)
+        , m_rightFactor(std::move(rightFactor)) {}
+private:
+    std::unique_ptr<Expression> m_leftFactor;
+    Position m_operatorPos;
+    std::unique_ptr<Expression> m_rightFactor;
+};
+
+class AndExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class OrExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class AddExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class SubExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class DivExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class MultExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class ModExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class ConcatExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class SplitExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class ConjunExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class AppendExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class ExtractExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class AsExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class EqExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class NotEqExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class GreatExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class LessExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class GreatEqExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class LessEqExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+};
+
+class UnaryExpr: public Expression {
+    UnaryExpr(std::unique_ptr<Expression> factor, Position operatorPos)
+        : m_factor(std::move(factor)), m_operatorPos(operatorPos) {} 
+private:
+    std::unique_ptr<Expression> m_factor;
+    Position m_operatorPos;
+};
+
+
 
 class Statement : public Node {};
 
@@ -99,12 +179,6 @@ class VoidFuncDecl : public Statement {};
 class RetStmt : public Statement {};
 class IdArrFuncCall : public Statement {};
 
-
-
-
-// class NodeVisitor : public Visitor {
-// 
-// };
 
 class Parser {
 public:
@@ -146,7 +220,10 @@ private:
             return st;
         if (auto st = parseScope())        
             return st;
-        if (auto st = parseVarOrFuncDecl())        
+
+        // TODO: dodać słownik typu <string, FuncDecl>, który będzie przechowywał zadeklarowane funkcje
+        // jeśli deklaracja się powtórzy, to błąd
+        if (auto st = parseVarOrFuncDecl())
             return st;
         if (auto st = parseVoidFuncDecl())        
             return st;
