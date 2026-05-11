@@ -66,6 +66,8 @@ enum class TokenType
     STR_T,
     ARR_T,
     RETURN_T,
+    TRUE_T,
+    FALSE_T,
 
     COMMA_T,            // ,
     L_BRACKET_T,        // (

@@ -78,7 +78,7 @@ TEST(BasicLexerTests, ParsesDoubleCharOperators)
 
 TEST(BasicLexerTests, ParsesKeywords) 
 {
-    std::istringstream input("if else while const as and or not void int flp str arr return");
+    std::istringstream input("if else while const as and or not void int flp str arr return true false");
     Lexer lexer(input);
 
     EXPECT_EQ(lexer.getToken().type, TokenType::IF_T);
@@ -95,6 +95,8 @@ TEST(BasicLexerTests, ParsesKeywords)
     EXPECT_EQ(lexer.getToken().type, TokenType::STR_T);
     EXPECT_EQ(lexer.getToken().type, TokenType::ARR_T);
     EXPECT_EQ(lexer.getToken().type, TokenType::RETURN_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::TRUE_T);
+    EXPECT_EQ(lexer.getToken().type, TokenType::FALSE_T);
 }
 
 TEST(BasicLexerTests, ParsesIdentifiers) 
