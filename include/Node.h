@@ -151,13 +151,14 @@ public:
 };
 
 // FUNCTION CALLS, ARRAY CALL, IDENTIFIERS
-class FuncCall : public Expression {
+class FunCall : public Expression {
 public:
-    FuncCall(std::string name, std::vector<std::unique_ptr<Expression>> arguments)
-        : m_name(name), m_arguments(std::move(arguments)) {}
+    FunCall(std::string name, std::vector<std::unique_ptr<Expression>> arguments, Position position)
+        : m_name(name), m_arguments(std::move(arguments)), m_position(position) {}
 private:
     std::string m_name;
     std::vector<std::unique_ptr<Expression>> m_arguments;
+    Position m_position;
 };
 
 class Statement : public Node {};

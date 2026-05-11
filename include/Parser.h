@@ -40,6 +40,13 @@ constexpr auto makeBinOpFactory() {
     };
 }
 
+template <typename T>
+constexpr auto makeUnaryOpFactory() {
+    return [](std::unique_ptr<Expression> l, Position p) -> std::unique_ptr<Expression> {
+        return std::make_unique<T>(std::move(l), p);
+    };
+}
+
 class Parser {
 public:
     Parser(ILexer& lexer) : m_lexer(lexer)
@@ -60,7 +67,6 @@ public:
         while (auto st = parseStatement())
             statements.push_back(std::move(st));
 
-
         return std::make_unique<Program>(std::move(statements));
     }
 
@@ -71,9 +77,6 @@ private:
     // Czy to na prawdę najlepszy sposób na tablicę lambd?
     // Binary operator type to class pointer table creation
     static constexpr std::array<BinOpFactory, to_idx(TokenType::UNKNOWN)> createBinOpTable() {
-        using std::make_unique;
-        using std::move;
-
         std::array<BinOpFactory, to_idx(TokenType::UNKNOWN)> table{};
 
         table[to_idx(TokenType::PLUS_T)] = makeBinOpFactory<AddExpr>(); 
@@ -99,9 +102,19 @@ private:
         return table;
     }
 
-    
+    static constexpr std::array<UnaryOpFactory, to_idx(TokenType::UNKNOWN)> createUnaryOpTable() {
+        std::array<UnaryOpFactory, to_idx(TokenType::UNKNOWN)> table{};
+
+        table[to_idx(TokenType::PLUS_T)] = makeUnaryOpFactory<PositiveExpr>();
+        table[to_idx(TokenType::MINUS_T)] = makeUnaryOpFactory<NegativeExpr>();
+        table[to_idx(TokenType::NOT_T)] = makeUnaryOpFactory<NotExpr>();
+        table[to_idx(TokenType::CARDINALITY_T)] = makeUnaryOpFactory<CardinalityExpr>();
+
+        return table;
+    }
 
     static inline const auto binaryOpTypeToObject = createBinOpTable();
+    static inline const auto unaryOpTypeToObject = createUnaryOpTable();
 
     void error(std::string_view message, Position tokenPos) {}
 
@@ -294,6 +307,8 @@ private:
                 throw SyntaxError("Missing experssion after multiplicative operator", peek().position);
             leftFactor = binaryOpTypeToObject[to_idx(multType)](std::move(leftFactor), multPosition, std::move(rightFactor));
         }
+
+        return leftFactor;
     }
 
     std::unique_ptr<Expression> parseUnaryExpr() {
@@ -303,11 +318,47 @@ private:
             auto factor = parsePostfix();
             if (!factor) 
                 throw SyntaxError("Stray operator", unaryPosition);
-            
+            return unaryOpTypeToObject[to_idx(unaryType)](std::move(factor), unaryPosition); 
         }
+        
+        auto factor = parsePostfix();
+        if (!factor)
+            return nullptr;
+
+        return factor;
     }
 
     std::unique_ptr<Expression> parsePostfix() {
+        auto factor = parseTypeCast();
+        if (!factor)
+            return nullptr;
+
+        if (match(TokenType::CARDINALITY_T))
+            factor = unaryOpTypeToObject[to_idx(TokenType::CARDINALITY_T)](std::move(factor), previous().position);
+
+        return factor;
+    }
+
+    std::unique_ptr<Expression> parseTypeCast() {
+        auto factor = parseCalls();
+        if (!factor)
+            return nullptr;
+
+        while (match(TokenType::AS_T)) {
+            Position asPosition = previous().position;
+            auto type = parseType();
+            if (!type)
+                throw SyntaxError("Invalid type in type cast", peek().position);
+            factor = binaryOpTypeToObject[to_idx(TokenType::AS_T)](std::move(factor), asPosition, std::move(type));
+        }
+    }
+
+    std::unique_ptr<Expression> parseType() {}
+
+    std::unique_ptr<Expression> parseCalls() {}
+
+
+    std::unique_ptr<Expression> parseFunCall(std::string name, Position position) {
         return nullptr;
     }
     
