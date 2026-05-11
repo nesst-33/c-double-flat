@@ -59,8 +59,9 @@ private:
 
     // Czy to na prawdę najlepszy sposób na tablicę lambd?
     // Binary operator type to class pointer table creation
-    static constexpr std::array<FactoryFunc, to_idx(TokenType::LESSER_EQ_T) + 1> createOpTable() {
-        std::array<FactoryFunc, to_idx(TokenType::LESSER_EQ_T) + 1> table{};
+    // TODO: restructure TokenType to save on memory
+    static constexpr std::array<FactoryFunc, to_idx(TokenType::UNKNOWN)> createOpTable() {
+        std::array<FactoryFunc, to_idx(TokenType::UNKNOWN)> table{};
 
         table[to_idx(TokenType::PLUS_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<AddExpr>(std::move(l), std::move(r)); };
         table[to_idx(TokenType::MINUS_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<SubExpr>(std::move(l), std::move(r)); };
@@ -78,6 +79,9 @@ private:
         table[to_idx(TokenType::NOT_EQ_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<NotEqExpr>(std::move(l), std::move(r)); };
         table[to_idx(TokenType::GREATER_EQ_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<GreatEqExpr>(std::move(l), std::move(r)); };
         table[to_idx(TokenType::LESSER_EQ_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<LessEqExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::AND_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<AndExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::OR_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<OrExpr>(std::move(l), std::move(r)); };
+        table[to_idx(TokenType::AS_T)] = [] (ExprPtr l, ExprPtr r) -> ExprPtr { return std::make_unique<AsExpr>(std::move(l), std::move(r)); };
         return table;
     }
 
