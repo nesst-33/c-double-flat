@@ -5,6 +5,7 @@
 #include <array>
 #include <initializer_list>
 #include <memory>
+#include <sys/syslimits.h>
 #include <utility>
 #include "Lexer.h"
 #include "Token.h"
@@ -46,6 +47,13 @@ constexpr auto makeUnaryOpFactory() {
     };
 }
 
+template <typename T>
+constexpr auto makeAssignFactory() {
+    return [](std::unique_ptr<Expression> l, Position p, std::unique_ptr<Expression> r) -> std::unique_ptr<Statement> {
+        return std::make_unique<T>(std::move(l), p);
+    };
+}
+
 class Parser {
 public:
     Parser(ILexer& lexer) : m_lexer(lexer)
@@ -59,6 +67,7 @@ public:
     using ExprPtr = std::unique_ptr<Expression>;
     using BinOpFactory = ExprPtr(*)(ExprPtr, Position, ExprPtr);
     using UnaryOpFactory = ExprPtr(*)(ExprPtr, Position);
+    using AssignFactory = std::unique_ptr<Statement>(*)(ExprPtr, Position, ExprPtr);
 
     std::unique_ptr<Program> parseProgram() {
         std::vector<std::unique_ptr<Statement>> statements{};
@@ -115,8 +124,23 @@ private:
         return table;
     }
 
+    static constexpr std::array<AssignFactory, to_idx(TokenType::UNKNOWN)> createAssignTable() {
+        std::array<AssignFactory, to_idx(TokenType::UNKNOWN)> table{}; 
+
+        table[to_idx(TokenType::ASSIGN_T)] = makeAssignFactory<BasicAssignStmt>();
+        table[to_idx(TokenType::ADD_ASSIGN_T)] = makeAssignFactory<AddAssignStmt>();
+        table[to_idx(TokenType::SUB_ASSIGN_T)] = makeAssignFactory<SubAssignStmt>();
+        table[to_idx(TokenType::MULT_ASSIGN_T)] = makeAssignFactory<MultAssignStmt>();
+        table[to_idx(TokenType::DIV_ASSIGN_T)] = makeAssignFactory<DivAssignStmt>();
+        table[to_idx(TokenType::MOD_ASSIGN_T)] = makeAssignFactory<ModAssignStmt>();
+        table[to_idx(TokenType::CONCAT_ASSIGN_T)] = makeAssignFactory<ConcatAssignStmt>();
+
+        return table;
+    }
+
     static inline const auto binaryOpTypeToObject = createBinOpTable();
     static inline const auto unaryOpTypeToObject = createUnaryOpTable();
+    static inline const auto assTypeToObject = createAssignTable();
 
     void error(std::string_view message, Position tokenPos) {}
 
@@ -146,9 +170,7 @@ private:
                 return st;
             if (auto st = parseVoidFuncDecl())        
                 return st;
-            if (auto st = parseRetStmt())
-                return st;
-            if (auto st = parseIdArrFuncCall())
+            if (auto st = parseIdArrFunCall())
                 return st;
         } catch (SyntaxError e) {}
         error("Invalid statement", peek().position);
@@ -158,6 +180,8 @@ private:
     std::unique_ptr<Statement> parseIfStmt() {
         if (!match(TokenType::IF_T))
             return nullptr;
+
+        Position ifPos = previous().position;
 
         auto condition = parseCondition();
 
@@ -175,7 +199,7 @@ private:
         } else 
             error("Expected 'else' or newline after if-statement scope", peek().position);
 
-        return std::make_unique<IfStmt>(std::move(condition), std::move(scope), std::move(elseBody));
+        return std::make_unique<IfStmt>(std::move(condition), std::move(scope), std::move(elseBody), ifPos);
     }
 
     std::unique_ptr<Expression> parseCondition() {
@@ -219,6 +243,8 @@ private:
         if (!match(TokenType::WHILE_T))
             return nullptr;
 
+        Position whilePos = previous().position;
+
         auto condition = parseCondition();
 
         match(TokenType::NEWLINE_T);
@@ -230,13 +256,64 @@ private:
         if (!match(TokenType::NEWLINE_T))
             error("Missing terminating newline", peek().position);
 
-        return std::make_unique<WhileStmt>(std::move(condition), std::move(whileBody));
+        return std::make_unique<WhileStmt>(std::move(condition), std::move(whileBody), whilePos);
     }
 
     std::unique_ptr<VarOrFuncDecl> parseVarOrFuncDecl();
     std::unique_ptr<VoidFuncDecl> parseVoidFuncDecl();
-    std::unique_ptr<RetStmt> parseRetStmt();
-    std::unique_ptr<IdArrFuncCall> parseIdArrFuncCall();
+
+    std::unique_ptr<RetStmt> parseRetStmt() {
+        if (!match(TokenType::RETURN_T))
+            return nullptr;
+
+        Position retPos = previous().position;
+        auto expression = parseExpression();
+
+        return std::make_unique<RetStmt>(std::move(expression), retPos);
+    }
+
+    std::unique_ptr<Statement> parseIdArrFunCall() {
+        if (!match(TokenType::IDENTIFIER_T))
+            return nullptr;
+
+        std::string name = std::get<std::string>(previous().value);
+        Position pos = previous().position;
+
+        if (auto funCall = parseFunCall(name, pos))
+            return std::make_unique<FunCallStmt>(std::move(funCall), pos);
+
+        std::unique_ptr<Expression> lhs = std::make_unique<Identifier>(name, pos);
+
+        // Parse array indexing
+        while (match(TokenType::L_SQUARE_T)) {
+            Position squarePos = previous().position;
+            auto indexExpr = parseExpression();
+
+            if (!indexExpr)
+                throw SyntaxError("Missing array index inside square brackets", previous().position);
+
+            if (!match(TokenType::R_SQUARE_T))
+                error("Missing closing square bracket", peek().position);
+
+            lhs = std::make_unique<ArrayExpr>(std::move(lhs), squarePos, std::move(indexExpr));
+        }
+        
+        // Parse assignment
+        if (!match({TokenType::ASSIGN_T, TokenType::ADD_ASSIGN_T, TokenType::SUB_ASSIGN_T, TokenType::MULT_ASSIGN_T,
+                    TokenType::DIV_ASSIGN_T, TokenType::MOD_ASSIGN_T, TokenType::CONCAT_ASSIGN_T}))
+            throw SyntaxError("Expected assignment or function call", peek().position);
+
+        Position assPos = previous().position;
+        TokenType assType = previous().type;
+        auto rhs = parseExpression();
+        if (!rhs)
+            throw SyntaxError("Expected expression", peek().position);
+        
+        if (!match(TokenType::NEWLINE_T))
+            error("Missing terminating newline", peek().position);
+
+        return assTypeToObject[to_idx(assType)](std::move(lhs), assPos, std::move(rhs));
+    }
 
     std::unique_ptr<Expression> parseExpression() {
         auto leftFactor = parseAndExpr();

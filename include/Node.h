@@ -4,7 +4,21 @@
 #include <memory>
 #include "Token.h"
 
-class Node {
+class Node {};
+
+// Type info for declarations
+enum class BaseType { Int, Flp, Str, Bool, Void };
+
+struct TypeInfo {
+    BaseType type;
+    bool isConst {};
+    int arrayDepth {};
+};
+
+struct TypedIndentifier {
+    TypeInfo type;
+    std::string name;
+    Position pos;
 };
 
 // EXPRESSIONS
@@ -124,6 +138,7 @@ public:
     using BinaryExpr::BinaryExpr;
 };
 
+
 // UNARY EXPRESSIONS
 class UnaryExpr: public Expression {
 public:
@@ -241,9 +256,14 @@ private:
     Position m_position;
 };
 
-class Statement : public Node {};
 
-class Scope : public Statement {};
+class Statement : public Node {
+public:
+    Statement(Position pos) : m_position(pos) {}
+private:
+    Position m_position;
+};
+
 
 class Program : public Node {
 public:
@@ -253,29 +273,114 @@ private:
     std::vector<std::unique_ptr<Statement>> m_statements{};
 };
 
+class FunCallStmt : public Statement {
+public:
+    FunCallStmt(std::unique_ptr<Expression> funCall, Position pos)
+        : m_funCall(std::move(funCall)), Statement(pos) {}
+private:
+    std::unique_ptr<Expression> m_funCall;
+};
 
 class IfStmt : public Statement {
 public:
     IfStmt(std::unique_ptr<Expression> condition, std::unique_ptr<Statement> scope,
-            std::unique_ptr<Statement> elseStmt)
+            std::unique_ptr<Statement> elseStmt, Position position)
         : m_condition(std::move(condition)), m_scope(std::move(scope))
-        , m_else(std::move(elseStmt)) {}
+        , m_else(std::move(elseStmt)), Statement(position) {}
 private:
     std::unique_ptr<Expression> m_condition;
     std::unique_ptr<Statement> m_scope;
     std::unique_ptr<Statement> m_else;
+    Position m_position;
 };
 
 class WhileStmt : public Statement {
 public:
-    WhileStmt(std::unique_ptr<Expression> condition, std::unique_ptr<Statement> body)
-        : m_condition(std::move(condition)), m_body(std::move(body)) {}
+    WhileStmt(std::unique_ptr<Expression> condition, std::unique_ptr<Statement> body, Position position)
+        : m_condition(std::move(condition)), m_body(std::move(body)), Statement(position) {}
 private:
     std::unique_ptr<Expression> m_condition;
     std::unique_ptr<Statement> m_body;
+    Position m_position;
+};
+
+class Scope : public Statement {
+public:
+    Scope(std::unique_ptr<Expression> scope, Position pos)
+        : Statement(pos), m_scope(std::move(scope)) {}
+private:
+    std::unique_ptr<Expression> m_scope;
 };
 
 class VarOrFuncDecl : public Statement {};
 class VoidFuncDecl : public Statement {};
-class RetStmt : public Statement {};
-class IdArrFuncCall : public Statement {};
+
+class RetStmt : public Statement {
+public:
+    RetStmt(std::unique_ptr<Expression> expr, Position pos)
+        : m_expression(std::move(expr)), Statement(pos) {}
+private:
+    std::unique_ptr<Expression> m_expression;
+    Position m_position;
+};
+
+// DECLARATIONS
+class VarDeclStmt : public Statement {
+public:
+    VarDeclStmt(TypedIndentifier target, 
+            std::unique_ptr<Expression> initializer,
+            Position pos)
+        : Statement(pos)
+        , m_target(std::move(target))
+        , m_initializer(std::move(initializer)) {}
+
+private:
+    TypedIndentifier m_target;
+    std::unique_ptr<Expression> m_initializer;
+};
+
+// ASSIGNMENTS
+class AssignStmt : public Statement {
+public:
+    AssignStmt(std::unique_ptr<Expression> lhs, Position opPos, std::unique_ptr<Expression> rhs)
+        : Statement(opPos), m_lhs(std::move(lhs)), m_rhs(std::move(rhs)) {} 
+private:
+    std::unique_ptr<Expression> m_lhs; 
+    std::unique_ptr<Expression> m_rhs; 
+};
+
+class BasicAssignStmt : public AssignStmt {
+public:
+    using AssignStmt::AssignStmt;
+};
+
+class AddAssignStmt : public AssignStmt {
+public:
+    using AssignStmt::AssignStmt;
+};
+
+class SubAssignStmt : public AssignStmt { 
+public:
+    using AssignStmt::AssignStmt;
+};
+
+class MultAssignStmt : public AssignStmt { 
+public:
+    using AssignStmt::AssignStmt;
+};
+
+class DivAssignStmt : public AssignStmt { 
+public:
+    using AssignStmt::AssignStmt;
+};
+
+class ModAssignStmt : public AssignStmt { 
+public:
+    using AssignStmt::AssignStmt;
+};
+
+class ConcatAssignStmt : public AssignStmt { 
+public:
+    using AssignStmt::AssignStmt;
+};
+
