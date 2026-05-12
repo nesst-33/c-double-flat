@@ -121,10 +121,11 @@ public:
 class ArrayExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
-}
+};
 
 // UNARY EXPRESSIONS
 class UnaryExpr: public Expression {
+public:
     UnaryExpr(std::unique_ptr<Expression> factor, Position operatorPos)
         : m_factor(std::move(factor)), m_operatorPos(operatorPos) {} 
 private:
@@ -242,7 +243,6 @@ private:
 class Statement : public Node {};
 
 class Scope : public Statement {};
-class ElseStmt : public Node {};
 
 class Program : public Node {
 public:
@@ -255,15 +255,16 @@ private:
 
 class IfStmt : public Statement {
 public:
-    IfStmt(std::unique_ptr<Expression> expr, std::unique_ptr<Scope> scope,
-            std::unique_ptr<ElseStmt> elseStmt)
-        : m_expression(std::move(expr)), m_scope(std::move(scope))
+    IfStmt(std::unique_ptr<Expression> condition, std::unique_ptr<Statement> scope,
+            std::unique_ptr<Statement> elseStmt)
+        : m_condition(std::move(condition)), m_scope(std::move(scope))
         , m_else(std::move(elseStmt)) {}
 private:
-    std::unique_ptr<Expression> m_expression;
-    std::unique_ptr<Scope> m_scope;
-    std::unique_ptr<ElseStmt> m_else;
+    std::unique_ptr<Expression> m_condition;
+    std::unique_ptr<Statement> m_scope;
+    std::unique_ptr<Statement> m_else;
 };
+
 
 class WhileStmt : public Statement {};
 class VarOrFuncDecl : public Statement {};
