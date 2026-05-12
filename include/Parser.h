@@ -56,7 +56,7 @@ public:
             currToken = m_lexer.getToken();
     }
 
-    // For use in binaryOpTypeToObject
+    // For use in tokenType -> Constructor lambdas (see createBinOpTable())
     using ExprPtr = std::unique_ptr<Expression>;
     using BinOpFactory = ExprPtr(*)(ExprPtr, Position, ExprPtr);
     using UnaryOpFactory = ExprPtr(*)(ExprPtr, Position);
@@ -97,7 +97,6 @@ private:
         table[to_idx(TokenType::LESSER_EQ_T)] = makeBinOpFactory<LessEqExpr>(); 
         table[to_idx(TokenType::AND_T)] = makeBinOpFactory<AndExpr>(); 
         table[to_idx(TokenType::OR_T)] = makeBinOpFactory<OrExpr>(); 
-        table[to_idx(TokenType::AS_T)] = makeBinOpFactory<AsExpr>(); 
 
         return table;
     }
@@ -109,6 +108,10 @@ private:
         table[to_idx(TokenType::MINUS_T)] = makeUnaryOpFactory<NegativeExpr>();
         table[to_idx(TokenType::NOT_T)] = makeUnaryOpFactory<NotExpr>();
         table[to_idx(TokenType::CARDINALITY_T)] = makeUnaryOpFactory<CardinalityExpr>();
+        table[to_idx(TokenType::STR_T)] = makeUnaryOpFactory<StrCast>();
+        table[to_idx(TokenType::INT_T)] = makeUnaryOpFactory<IntCast>();
+        table[to_idx(TokenType::BOOL_T)] = makeUnaryOpFactory<BoolCast>();
+        table[to_idx(TokenType::FLP_T)] = makeUnaryOpFactory<FlpCast>();
 
         return table;
     }
@@ -340,27 +343,97 @@ private:
     }
 
     std::unique_ptr<Expression> parseTypeCast() {
-        auto factor = parseCalls();
+        auto factor = parseSubject();
         if (!factor)
             return nullptr;
 
         while (match(TokenType::AS_T)) {
             Position asPosition = previous().position;
-            auto type = parseType();
-            if (!type)
+
+            if (match({TokenType::STR_T, TokenType::INT_T, TokenType::BOOL_T, TokenType::FLP_T})) {
+                TokenType type = previous().type;
+                factor = unaryOpTypeToObject[to_idx(type)](std::move(factor), asPosition);
+            }
+            else 
                 throw SyntaxError("Invalid type in type cast", peek().position);
-            factor = binaryOpTypeToObject[to_idx(TokenType::AS_T)](std::move(factor), asPosition, std::move(type));
         }
+
+        return factor;
     }
 
-    std::unique_ptr<Expression> parseType() {}
+    std::unique_ptr<Expression> parseSubject() {
+        if (auto exp = parseIdOrCall())
+            return exp;
+        if (auto exp = parseLiterals())
+            return exp;
+        if (auto exp = parseNestedExpr())
+            return exp;
+          
+        throw SyntaxError("Invalid expression", peek().position);
+    } 
 
-    std::unique_ptr<Expression> parseCalls() {}
+    std::unique_ptr<Expression> parseIdOrCall() {
+        if (!match(TokenType::IDENTIFIER_T))
+            return nullptr;
 
+        std::string idName = std::get<std::string>(previous().value);
+        Position idPosition = previous().position;
+
+        if (auto exp = parseFunCall(idName, idPosition))
+            return exp;
+        if (auto exp = parseArrCall(idName, idPosition))
+            return exp;
+
+        return std::make_unique<Identifier>(idName, idPosition);
+    } 
 
     std::unique_ptr<Expression> parseFunCall(std::string name, Position position) {
+        if (!match(TokenType::L_BRACKET_T))
+            return nullptr;
+        
+        std::vector<std::unique_ptr<Expression>> arguments {};
+        auto argument = parseExpression();
+        if (argument) {
+            arguments.push_back(std::move(argument));
+
+            while (match(TokenType::COMMA_T)) {
+                Position argPos = peek().position;
+                argument = parseExpression();
+                if (!argument)
+                    throw SyntaxError("Invalid argument", argPos); 
+                arguments.push_back(std::move(argument));
+            }
+        }
+
+        if (!match(TokenType::R_BRACKET_T))
+            error("Missing closing bracket", peek().position);
+
+        return std::make_unique<FunCall>(name, std::move(arguments), position);
+    }
+
+    std::unique_ptr<Expression> parseArrCall(std::string name, Position position) {
+        if (!match(TokenType::L_SQUARE_T))
+            return nullptr;
+
         return nullptr;
     }
+
+    std::unique_ptr<Expression> parseLiterals() {
+        return nullptr;
+    } 
+
+    std::unique_ptr<Expression> parseNestedExpr() {
+        if (!match(TokenType::L_BRACKET_T))
+            return nullptr;
+        
+        auto expr = parseExpression();
+
+        if (!match(TokenType::R_BRACKET_T))
+            error("Missing closing parenthesis", peek().position);
+
+        return expr;
+    }
+
     
     bool isAtEnd() const { return peek().type == TokenType::EOT; }
 

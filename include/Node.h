@@ -1,3 +1,4 @@
+#include <utility>
 #include <vector>
 #include <memory>
 #include "Token.h"
@@ -86,11 +87,6 @@ public:
     using BinaryExpr::BinaryExpr;
 };
 
-class AsExpr : public BinaryExpr {
-public:
-    using BinaryExpr::BinaryExpr;
-};
-
 class EqExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
@@ -121,6 +117,12 @@ public:
     using BinaryExpr::BinaryExpr;
 };
 
+// Either indexing or predicate filtering
+class ArrayExpr : public BinaryExpr {
+public:
+    using BinaryExpr::BinaryExpr;
+}
+
 // UNARY EXPRESSIONS
 class UnaryExpr: public Expression {
     UnaryExpr(std::unique_ptr<Expression> factor, Position operatorPos)
@@ -150,7 +152,75 @@ public:
     using UnaryExpr::UnaryExpr;
 };
 
-// FUNCTION CALLS, ARRAY CALL, IDENTIFIERS
+// Type cast is a unary operator at its core (it completely changes behaviour depending on type)
+class AsExpr : public UnaryExpr {
+public:
+    using UnaryExpr::UnaryExpr;
+};
+
+class StrCast : public AsExpr {
+public:
+    using AsExpr::AsExpr;
+};
+
+class IntCast : public AsExpr {
+public:
+    using AsExpr::AsExpr;
+};
+
+class BoolCast : public AsExpr {
+public:
+    using AsExpr::AsExpr;
+};
+
+class FlpCast : public AsExpr {
+public:
+    using AsExpr::AsExpr;
+};
+
+// LITERALS
+class IntLit : public Expression {
+public:
+    IntLit(int value, Position position) : m_value(value), m_position(position) {}
+private:
+    int m_value;
+    Position m_position;
+};
+
+class StrLit : public Expression {
+public:
+    StrLit(std::string value, Position position) : m_value(value), m_position(position) {}
+private:
+    std::string m_value;
+    Position m_position;
+};
+
+class FlpLit : public Expression {
+public:
+    FlpLit(double value, Position position) : m_value(value), m_position(position) {}
+private:
+    double m_value;
+    Position m_position;
+};
+
+class BoolLit : public Expression {
+public:
+    BoolLit(bool value, Position position) : m_value(value), m_position(position) {}
+private:
+    bool m_value;
+    Position m_position;
+};
+
+class ArrayLit : public Expression {
+public:
+    ArrayLit(std::vector<std::unique_ptr<Expression>> values, Position position)
+        : m_values(std::move(values)), m_position(position) {}
+private:
+    std::vector<std::unique_ptr<Expression>> m_values;
+    Position m_position;
+};
+
+// FUNCTION CALLS, ARRAY CALL, IDENTIFIERS AND OTHERS
 class FunCall : public Expression {
 public:
     FunCall(std::string name, std::vector<std::unique_ptr<Expression>> arguments, Position position)
@@ -158,6 +228,14 @@ public:
 private:
     std::string m_name;
     std::vector<std::unique_ptr<Expression>> m_arguments;
+    Position m_position;
+};
+
+class Identifier : public Expression {
+public:
+    Identifier(std::string name, Position position) : m_name(name), m_position(position) {}
+private:
+    std::string m_name;
     Position m_position;
 };
 
