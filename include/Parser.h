@@ -368,15 +368,18 @@ private:
             Position squarePos = previous().position;
             auto indexExpr = parseExpression();
             if (!indexExpr)
-                throw SyntaxError("Missing or invalid array index/predicate inside square brackets", squarePos);
+                throw SyntaxError("Missing or invalid array index/predicate inside square brackets", previous().position);
             arrObj = std::make_unique<ArrayExpr>(std::move(arrObj), squarePos, std::move(indexExpr));
+
+            if (!match(TokenType::R_SQUARE_T))
+                error("Missing closing square bracket", peek().position);
         }
 
         return arrObj;
     }
 
     std::unique_ptr<Expression> parseSubject() {
-        if (auto exp = parseIdOrCall())
+        if (auto exp = parseIdOrFunCall())
             return exp;
         if (auto exp = parseLiterals())
             return exp;
@@ -386,7 +389,7 @@ private:
         throw SyntaxError("Invalid expression", peek().position);
     } 
 
-    std::unique_ptr<Expression> parseIdOrCall() {
+    std::unique_ptr<Expression> parseIdOrFunCall() {
         if (!match(TokenType::IDENTIFIER_T))
             return nullptr;
 
