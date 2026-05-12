@@ -135,8 +135,11 @@ private:
                 return st;
             if (auto st = parseWhileStmt())        
                 return st;
-            if (auto st = parseScope())        
+            if (auto st = parseScope()) {        
+                if (!match(TokenType::NEWLINE_T)) 
+                    error("Missing terminating newline", peek().position);
                 return st;
+            }
             // TODO: dodać słownik typu <string, FuncDecl>, który będzie przechowywał zadeklarowane funkcje
             // jeśli deklaracja się powtórzy, to błąd
             if (auto st = parseVarOrFuncDecl())
@@ -156,15 +159,7 @@ private:
         if (!match(TokenType::IF_T))
             return nullptr;
 
-        if (!match(TokenType::L_BRACKET_T))
-            error("Missing left bracket", peek().position);
-
-        auto condition = parseExpression();
-        if (!condition) 
-            throw SyntaxError("Invalid condition", peek().position);    
-        
-        if (!match(TokenType::R_BRACKET_T))
-            error("Missing right bracket", peek().position);
+        auto condition = parseCondition();
 
         match(TokenType::NEWLINE_T);
 
@@ -183,6 +178,20 @@ private:
         return std::make_unique<IfStmt>(std::move(condition), std::move(scope), std::move(elseBody));
     }
 
+    std::unique_ptr<Expression> parseCondition() {
+        if (!match(TokenType::L_BRACKET_T))
+            error("Missing left bracket", peek().position);
+
+        auto condition = parseExpression();
+        if (!condition) 
+            throw SyntaxError("Invalid condition", peek().position);    
+        
+        if (!match(TokenType::R_BRACKET_T))
+            error("Missing right bracket", peek().position);
+
+        return condition;
+    }
+
     std::unique_ptr<Statement> parseElseBody() {
         if (!match(TokenType::ELSE_T))
             return nullptr;
@@ -198,15 +207,32 @@ private:
 
         return elseBody;
     }
-    std::unique_ptr<WhileStmt> parseWhileStmt();
 
-    std::unique_ptr<Scope> parseScope() {
-        if (!check(TokenType::L_BRACE_T))
+    std::unique_ptr<Statement> parseScope() {
+        if (!match(TokenType::L_BRACE_T))
             return nullptr;
-        advance();
 
         return nullptr;
     }
+
+    std::unique_ptr<Statement> parseWhileStmt() {
+        if (!match(TokenType::WHILE_T))
+            return nullptr;
+
+        auto condition = parseCondition();
+
+        match(TokenType::NEWLINE_T);
+
+        auto whileBody = parseScope();
+        if (!whileBody)
+            throw SyntaxError("Missing while body", peek().position);
+
+        if (!match(TokenType::NEWLINE_T))
+            error("Missing terminating newline", peek().position);
+
+        return std::make_unique<WhileStmt>(std::move(condition), std::move(whileBody));
+    }
+
     std::unique_ptr<VarOrFuncDecl> parseVarOrFuncDecl();
     std::unique_ptr<VoidFuncDecl> parseVoidFuncDecl();
     std::unique_ptr<RetStmt> parseRetStmt();

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <utility>
 #include <vector>
 #include <memory>
@@ -265,8 +266,15 @@ private:
     std::unique_ptr<Statement> m_else;
 };
 
+class WhileStmt : public Statement {
+public:
+    WhileStmt(std::unique_ptr<Expression> condition, std::unique_ptr<Statement> body)
+        : m_condition(std::move(condition)), m_body(std::move(body)) {}
+private:
+    std::unique_ptr<Expression> m_condition;
+    std::unique_ptr<Statement> m_body;
+};
 
-class WhileStmt : public Statement {};
 class VarOrFuncDecl : public Statement {};
 class VoidFuncDecl : public Statement {};
 class RetStmt : public Statement {};
