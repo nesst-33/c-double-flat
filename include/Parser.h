@@ -130,54 +130,73 @@ private:
 
         // I'll parse the trailing newline in the methods below (not outside like EBNF suggests)
         // TODO: try-catch
-        if (auto st = parseIfStmt())        
-            return st;
-        if (auto st = parseWhileStmt())        
-            return st;
-        if (auto st = parseScope())        
-            return st;
-
-        // TODO: dodać słownik typu <string, FuncDecl>, który będzie przechowywał zadeklarowane funkcje
-        // jeśli deklaracja się powtórzy, to błąd
-        if (auto st = parseVarOrFuncDecl())
-            return st;
-        if (auto st = parseVoidFuncDecl())        
-            return st;
-        if (auto st = parseRetStmt())
-            return st;
-        if (auto st = parseIdArrFuncCall())
-            return st;
-
+        try {
+            if (auto st = parseIfStmt())        
+                return st;
+            if (auto st = parseWhileStmt())        
+                return st;
+            if (auto st = parseScope())        
+                return st;
+            // TODO: dodać słownik typu <string, FuncDecl>, który będzie przechowywał zadeklarowane funkcje
+            // jeśli deklaracja się powtórzy, to błąd
+            if (auto st = parseVarOrFuncDecl())
+                return st;
+            if (auto st = parseVoidFuncDecl())        
+                return st;
+            if (auto st = parseRetStmt())
+                return st;
+            if (auto st = parseIdArrFuncCall())
+                return st;
+        } catch (SyntaxError e) {}
         error("Invalid statement", peek().position);
         return nullptr;
     }
 
-    std::unique_ptr<IfStmt> parseIfStmt() {
-        if (!check(TokenType::IF_T)) 
+    std::unique_ptr<Statement> parseIfStmt() {
+        if (!match(TokenType::IF_T))
             return nullptr;
-        advance();
 
-        if (!match({TokenType::L_BRACKET_T}))
+        if (!match(TokenType::L_BRACKET_T))
             error("Missing left bracket", peek().position);
 
         auto condition = parseExpression();
         if (!condition) 
             throw SyntaxError("Invalid condition", peek().position);    
         
-        if (!match({TokenType::L_BRACKET_T}))
+        if (!match(TokenType::R_BRACKET_T))
             error("Missing right bracket", peek().position);
 
-        match({TokenType::NEWLINE_T});
+        match(TokenType::NEWLINE_T);
 
         auto scope = parseScope();
         if (!scope) 
             throw SyntaxError("Ill-formed scope", peek().position);
 
-        if (!match({TokenType::NEWLINE_T}))
-            error("Missing newline", peek().position);
+        auto elseBody = parseElseBody();
 
-        // TODO: add else statement support
-        return std::make_unique<IfStmt>(std::move(condition), std::move(scope), nullptr);
+        if (!elseBody) {
+            if (match(TokenType::NEWLINE_T)) 
+                elseBody = parseElseBody();
+        } else 
+            error("Expected 'else' or newline after if-statement scope", peek().position);
+
+        return std::make_unique<IfStmt>(std::move(condition), std::move(scope), std::move(elseBody));
+    }
+
+    std::unique_ptr<Statement> parseElseBody() {
+        if (!match(TokenType::ELSE_T))
+            return nullptr;
+
+        match(TokenType::NEWLINE_T);
+
+        auto elseBody = parseScope();
+        if (!elseBody)
+            throw SyntaxError("Invalid else body", peek().position);
+
+        if (!match(TokenType::NEWLINE_T))
+            error("Missing terminating newline", peek().position);
+
+        return elseBody;
     }
     std::unique_ptr<WhileStmt> parseWhileStmt();
 
