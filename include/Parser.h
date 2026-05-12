@@ -1,6 +1,7 @@
 #ifndef _PARSER_H
 #define _PARSER_H
 
+#include <algorithm>
 #include <array>
 #include <initializer_list>
 #include <memory>
@@ -427,8 +428,46 @@ private:
     }
 
     std::unique_ptr<Expression> parseLiterals() {
-        return nullptr;
+        if (match(TokenType::INT_VALUE_T)) 
+            return std::make_unique<IntLit>(std::get<int>(previous().value), previous().position);
+        if (match(TokenType::FLP_VALUE_T))
+            return std::make_unique<FlpLit>(std::get<double>(previous().value), previous().position);
+        if (match(TokenType::STR_VALUE_T))
+            return std::make_unique<StrLit>(std::get<std::string>(previous().value), previous().position);
+        if (match(TokenType::TRUE_T))
+            return std::make_unique<BoolLit>(true, previous().position);
+        if (match(TokenType::FALSE_T))
+            return std::make_unique<BoolLit>(false, previous().position);
+        if (auto arr = parseArrayLiteral())
+            return arr;
+
+        return nullptr; 
     } 
+
+    std::unique_ptr<Expression> parseArrayLiteral() {
+        if (!match(TokenType::L_SQUARE_T)) 
+            return nullptr;
+
+        Position arrPos = previous().position;
+        std::vector<std::unique_ptr<Expression>> values {};
+        auto value = parseExpression();
+        if (value) {
+            values.push_back(std::move(value));
+            
+            while (match(TokenType::COMMA_T)) {
+                Position valPos = peek().position;
+                value = parseExpression();
+                if (!value)
+                    throw SyntaxError("Invalid expression in array literal", valPos);
+                values.push_back(std::move(value));
+            }
+        }
+
+        if (!match(TokenType::R_SQUARE_T))
+            error("Missing closing square bracket in array literal", peek().position);
+
+        return std::make_unique<ArrayLit>(std::move(values), arrPos);
+    }
 
     std::unique_ptr<Expression> parseNestedExpr() {
         if (!match(TokenType::L_BRACKET_T))
