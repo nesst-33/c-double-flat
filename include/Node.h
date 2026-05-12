@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <utility>
 #include <vector>
 #include <memory>
@@ -7,7 +6,7 @@
 class Node {};
 
 // Type info for declarations
-enum class BaseType { Int, Flp, Str, Bool, Void };
+enum class BaseType { INT, FLP, STR, BOOL, VOID };
 
 struct TypeInfo {
     BaseType type;
@@ -15,7 +14,7 @@ struct TypeInfo {
     int arrayDepth {};
 };
 
-struct TypedIndentifier {
+struct Parameter {
     TypeInfo type;
     std::string name;
     Position pos;
@@ -306,10 +305,10 @@ private:
 
 class Scope : public Statement {
 public:
-    Scope(std::unique_ptr<Expression> scope, Position pos)
-        : Statement(pos), m_scope(std::move(scope)) {}
+    Scope(std::vector<std::unique_ptr<Expression>> statements, Position pos)
+        : Statement(pos), m_statements(std::move(statements)) {}
 private:
-    std::unique_ptr<Expression> m_scope;
+    std::vector<std::unique_ptr<Expression>> m_statements;
 };
 
 class VarOrFuncDecl : public Statement {};
@@ -327,16 +326,38 @@ private:
 // DECLARATIONS
 class VarDeclStmt : public Statement {
 public:
-    VarDeclStmt(TypedIndentifier target, 
+    VarDeclStmt(TypeInfo type, 
+            std::string name,
             std::unique_ptr<Expression> initializer,
             Position pos)
         : Statement(pos)
-        , m_target(std::move(target))
+        , m_type(std::move(type))
+        , m_name(std::move(name))
         , m_initializer(std::move(initializer)) {}
 
 private:
-    TypedIndentifier m_target;
+    TypeInfo m_type;
+    std::string m_name;
     std::unique_ptr<Expression> m_initializer;
+};
+
+class FuncDeclStmt : public Statement {
+public:
+    FuncDeclStmt(TypeInfo returnType,
+            std::string name,
+            std::vector<Parameter> params,
+            std::unique_ptr<Statement> body,
+            Position pos)
+        : Statement(pos)
+        , m_returnType(returnType)
+        , m_name(std::move(name))
+        , m_params(std::move(params))
+        , m_body(std::move(body)) {}
+private:
+    TypeInfo m_returnType;
+    std::string m_name;
+    std::vector<Parameter> m_params;
+    std::unique_ptr<Statement> m_body;
 };
 
 // ASSIGNMENTS

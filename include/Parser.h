@@ -7,6 +7,7 @@
 #include <memory>
 #include <sys/syslimits.h>
 #include <utility>
+#include <vector>
 #include "Lexer.h"
 #include "Token.h"
 #include "Node.h"
@@ -259,8 +260,112 @@ private:
         return std::make_unique<WhileStmt>(std::move(condition), std::move(whileBody), whilePos);
     }
 
-    std::unique_ptr<VarOrFuncDecl> parseVarOrFuncDecl();
-    std::unique_ptr<VoidFuncDecl> parseVoidFuncDecl();
+    std::unique_ptr<Statement> parseVarOrFuncDecl() {
+        Position startPos = peek().position;
+        auto typeOpt = parseType();
+        if (!typeOpt)
+            return nullptr;
+
+        TypeInfo type = *typeOpt;
+
+        if (!match(TokenType::IDENTIFIER_T))
+            throw SyntaxError("Expected identifier name after type", peek().position);
+
+        std::string name = std::get<std::string>(previous().value);
+        if (auto func = parseFuncDecl(type, name, startPos))
+            return func;
+        
+        return parseVarDecl(type, name, startPos);
+    }
+
+    std::unique_ptr<Statement> parseVoidFuncDecl() {
+
+    }
+
+    std::unique_ptr<Statement> parseFuncDecl(TypeInfo type, std::string name, Position pos) {
+        if (!match(TokenType::L_BRACKET_T))
+            return nullptr;
+
+        std::vector<Parameter> params = parseParameters();
+
+        if (!match(TokenType::R_BRACKET_T))
+            error("Missing closing bracket in parameter list", peek().position);
+        
+        match(TokenType::NEWLINE_T);
+
+        auto body = parseScope();
+        if (!body)
+            throw SyntaxError("Missing function body", peek().position);
+
+        return std::make_unique<FuncDeclStmt>(type, name, std::move(params), std::move(body), pos);
+    }
+
+    std::unique_ptr<Statement> parseVarDecl(TypeInfo type, std::string name, Position pos) {
+        std::unique_ptr<Expression> initializer;
+        if (match(TokenType::ASSIGN_T)) {
+            initializer = parseExpression();
+            if (!initializer)
+                throw SyntaxError("Invalid expression after '='", peek().position);
+        }
+
+        return std::make_unique<VarDeclStmt>(type, name, std::move(initializer), pos);
+    }
+
+    std::vector<Parameter> parseParameters() {
+        std::vector<Parameter> params{};
+        auto typeOpt = parseType();
+        if (!typeOpt)
+            return params;
+
+        TypeInfo type = *typeOpt;
+
+        if (!match(TokenType::IDENTIFIER_T))
+            throw SyntaxError("Expected identifier name after type", peek().position);
+
+        params.push_back({std::move(type), std::get<std::string>(previous().value), previous().position});
+
+        while (match(TokenType::COMMA_T)) {
+            typeOpt = parseType();
+            
+            if (!typeOpt) {
+                error("Trailing comma", previous().position);
+                continue;
+            }
+
+            type = *typeOpt; 
+            if (!match(TokenType::IDENTIFIER_T))
+                throw SyntaxError("Expected identifier name after type", peek().position);
+            Parameter param = {std::move(type), std::get<std::string>(previous().value), previous().position};
+            params.push_back(param);
+        }
+
+        return params;
+    }
+
+
+    std::optional<TypeInfo> parseType() {
+        TypeInfo type{};
+        type.isConst = match(TokenType::CONST_T);
+
+        while (match(TokenType::ARR_T))
+            type.arrayDepth++;
+
+        if (match(TokenType::INT_T))
+            type.type = BaseType::INT;
+        else if (match(TokenType::FLP_T))
+            type.type = BaseType::FLP;
+        else if (match(TokenType::STR_T))
+            type.type = BaseType::STR;
+        else if (match(TokenType::BOOL_T))
+            type.type = BaseType::BOOL;
+        else {
+            if (type.isConst || type.arrayDepth > 0)
+                throw SyntaxError("Missing type in declaration", peek().position);
+            return std::nullopt;
+        }
+
+        return type;
+    }
 
     std::unique_ptr<RetStmt> parseRetStmt() {
         if (!match(TokenType::RETURN_T))
