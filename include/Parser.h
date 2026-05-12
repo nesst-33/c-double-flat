@@ -1,7 +1,6 @@
 #ifndef _PARSER_H
 #define _PARSER_H
 
-#include <algorithm>
 #include <array>
 #include <initializer_list>
 #include <memory>
@@ -32,8 +31,6 @@ constexpr auto to_idx(T e) {
     return static_cast<std::size_t>(e);
 }
 
-class Parser;
-
 template <typename T>
 constexpr auto makeBinOpFactory() {
     return [](std::unique_ptr<Expression> l, Position p, std::unique_ptr<Expression> r) -> std::unique_ptr<Expression> {
@@ -51,7 +48,7 @@ constexpr auto makeUnaryOpFactory() {
 template <typename T>
 constexpr auto makeAssignFactory() {
     return [](std::unique_ptr<Expression> l, Position p, std::unique_ptr<Expression> r) -> std::unique_ptr<Statement> {
-        return std::make_unique<T>(std::move(l), p);
+        return std::make_unique<T>(std::move(l), p, std::move(r));
     };
 }
 
@@ -237,6 +234,9 @@ private:
         if (!match(TokenType::L_BRACE_T))
             return nullptr;
 
+        match(TokenType::NEWLINE_T);
+
+
         return nullptr;
     }
 
@@ -386,12 +386,15 @@ private:
         return type;
     }
 
-    std::unique_ptr<RetStmt> parseRetStmt() {
+    std::unique_ptr<Statement> parseRetStmt() {
         if (!match(TokenType::RETURN_T))
             return nullptr;
 
         Position retPos = previous().position;
         auto expression = parseExpression();
+
+        if (!match(TokenType::NEWLINE_T))
+            error("Missing terminating newline", peek().position);
 
         return std::make_unique<RetStmt>(std::move(expression), retPos);
     }
