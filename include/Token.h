@@ -64,6 +64,7 @@ enum class TokenType
     INT_T,
     FLP_T,
     STR_T,
+    BOOL_T,
     ARR_T,
     RETURN_T,
     TRUE_T,

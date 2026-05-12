@@ -19,7 +19,8 @@ const std::unordered_map<std::string_view, TokenType> Lexer::keyword_map = {
     {"arr", TokenType::ARR_T},
     {"return", TokenType::RETURN_T},
     {"true", TokenType::TRUE_T},
-    {"false", TokenType::FALSE_T}
+    {"false", TokenType::FALSE_T},
+    {"bool", TokenType::BOOL_T}
 };
 
 const std::unordered_map<std::string_view, TokenType> Lexer::operator_map = {
