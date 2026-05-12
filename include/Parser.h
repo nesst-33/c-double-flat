@@ -1,9 +1,7 @@
 #ifndef _PARSER_H
 #define _PARSER_H
 
-#include <algorithm>
 #include <array>
-#include <functional>
 #include <initializer_list>
 #include <memory>
 #include <utility>
@@ -343,7 +341,7 @@ private:
     }
 
     std::unique_ptr<Expression> parseTypeCast() {
-        auto factor = parseSubject();
+        auto factor = parseArrayExpr();
         if (!factor)
             return nullptr;
 
@@ -359,6 +357,22 @@ private:
         }
 
         return factor;
+    }
+
+    std::unique_ptr<Expression> parseArrayExpr() {
+        auto arrObj = parseSubject();
+        if (!arrObj)
+            return nullptr;
+
+        while (match(TokenType::L_SQUARE_T)) {
+            Position squarePos = previous().position;
+            auto indexExpr = parseExpression();
+            if (!indexExpr)
+                throw SyntaxError("Missing or invalid array index/predicate inside square brackets", squarePos);
+            arrObj = std::make_unique<ArrayExpr>(std::move(arrObj), squarePos, std::move(indexExpr));
+        }
+
+        return arrObj;
     }
 
     std::unique_ptr<Expression> parseSubject() {
@@ -380,8 +394,6 @@ private:
         Position idPosition = previous().position;
 
         if (auto exp = parseFunCall(idName, idPosition))
-            return exp;
-        if (auto exp = parseArrCall(idName, idPosition))
             return exp;
 
         return std::make_unique<Identifier>(idName, idPosition);
@@ -409,13 +421,6 @@ private:
             error("Missing closing bracket", peek().position);
 
         return std::make_unique<FunCall>(name, std::move(arguments), position);
-    }
-
-    std::unique_ptr<Expression> parseArrCall(std::string name, Position position) {
-        if (!match(TokenType::L_SQUARE_T))
-            return nullptr;
-
-        return nullptr;
     }
 
     std::unique_ptr<Expression> parseLiterals() {
