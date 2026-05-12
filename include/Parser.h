@@ -275,11 +275,30 @@ private:
         if (auto func = parseFuncDecl(type, name, startPos))
             return func;
         
+        if (!match(TokenType::NEWLINE_T))
+            error("Missing terminating newline", peek().position);
+
         return parseVarDecl(type, name, startPos);
     }
 
     std::unique_ptr<Statement> parseVoidFuncDecl() {
+        if (!match(TokenType::VOID_T))
+            return nullptr;
+        Position startPos = previous().position;
+        TypeInfo type {BaseType::VOID};
+        
+        if (!match(TokenType::IDENTIFIER_T))
+            throw SyntaxError("Expected identifier name after type", peek().position);
 
+        std::string name = std::get<std::string>(previous().value);
+        auto func = parseFuncDecl(type, name, startPos);
+        if (!func)
+            throw SyntaxError("Missing function declaration", peek().position);
+
+        if (!match(TokenType::NEWLINE_T))
+            error("Missing terminating newline", peek().position);
+
+        return func;
     }
 
     std::unique_ptr<Statement> parseFuncDecl(TypeInfo type, std::string name, Position pos) {
