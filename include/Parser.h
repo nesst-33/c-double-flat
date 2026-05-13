@@ -163,6 +163,8 @@ private:
     std::unique_ptr<Statement> parseVarDeclAssign(TypeInfo type, std::string name, Position pos);
     std::unique_ptr<Statement> parseRetStmt(); 
     std::unique_ptr<Statement> parseIdArrFunCall(); 
+    std::unique_ptr<Expression> parseArrayIdx(std::string name, Position pos);
+    std::unique_ptr<Statement> parseAssign(std::string name, Position pos);
 
     // Helper productions
     std::vector<Parameter> parseParameters(); 
@@ -183,6 +185,7 @@ private:
     std::unique_ptr<Expression> parseSubject(); 
     std::unique_ptr<Expression> parseIdOrFunCall(); 
     std::unique_ptr<Expression> parseFunCall(std::string name, Position position); 
+    std::vector<std::unique_ptr<Expression>> parseArguments();
     std::unique_ptr<Expression> parseLiterals(); 
     std::unique_ptr<Expression> parseArrayLiteral(); 
     std::unique_ptr<Expression> parseNestedExpr(); 

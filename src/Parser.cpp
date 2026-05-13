@@ -4,18 +4,6 @@
 #include <memory>
 #include <vector>
 
-
-// program = { statement }, EOT ;
-std::unique_ptr<Program> Parser::parse() {
-    std::vector<std::unique_ptr<Statement>> statements{};
-    while (auto statement = parseStatement())
-        statements.push_back(std::move(statement));
-    if (!isAtEnd())
-        throw SyntaxError("Expected end of file", peek().position);
-
-    return std::make_unique<Program>(std::move(statements));
-}
-
 void Parser::synchronize() {
     while (!isAtEnd()) {
         switch(peek().type) {
@@ -38,8 +26,20 @@ void Parser::synchronize() {
     }
 }
 
-// statement = if_stmt | while_stmt | scope_stmt | var_or_func_decl
-//           | void_func_decl | id_arr_func_call | newline
+// program = { statement }, EOT ;
+std::unique_ptr<Program> Parser::parse() {
+    std::vector<std::unique_ptr<Statement>> statements{};
+    while (auto statement = parseStatement())
+        statements.push_back(std::move(statement));
+    if (!isAtEnd())
+        throw SyntaxError("Expected end of file", peek().position);
+
+    return std::make_unique<Program>(std::move(statements));
+}
+
+// TODO : move newline check to parent method
+// statement = if_stmt | while_stmt | scope, newline | var_or_func_decl
+//           | void_func_decl | id_arr_func_call, newline | newline, {newline}
 std::unique_ptr<Statement> Parser::parseStatement() {
     
     // Ignore lines that are pure newline
@@ -56,12 +56,18 @@ std::unique_ptr<Statement> Parser::parseStatement() {
                 error("Missing terminating newline", peek().position);
             return st;
         }
-        if (auto st = parseVarOrFuncDecl())
+        if (auto st = parseVarOrFuncDecl()) {
+            if (!match(TokenType::NEWLINE_T)) 
+                error("Missing terminating newline", peek().position);
             return st;
+        }
         if (auto st = parseVoidFuncDecl())        
             return st;
-        if (auto st = parseIdArrFunCall())
+        if (auto st = parseIdArrFunCall()) {
+            if (!match(TokenType::NEWLINE_T)) 
+                error("Missing terminating newline", peek().position);
             return st;
+        }
     } catch (SyntaxError e) {
         error(std::format("Invalid statement: {}", e.what()), e.getPosition());
         synchronize();
@@ -85,7 +91,7 @@ std::unique_ptr<Statement> Parser::parseScope() {
 }
 
 // scoped_stmt = var_decl | scope_stmt | if_stmt | while_stmt | return_stmt
-//             | id_arr_func_call | newline
+//             | id_arr_func_call, newline | newline
 std::unique_ptr<Statement> Parser::parseScopedStmt() {
     while(match(TokenType::NEWLINE_T));
 
@@ -100,8 +106,11 @@ std::unique_ptr<Statement> Parser::parseScopedStmt() {
                 error("Missing terminating newline", peek().position);
             return st;
         }
-        if (auto st = parseIdArrFunCall())
+        if (auto st = parseIdArrFunCall()) {
+            if (!match(TokenType::NEWLINE_T))
+                error("Missing terminating newline", peek().position);
             return st;
+        }
         if (auto st = parseVarDecl())
             return st;
         if (auto st = parseRetStmt())
@@ -229,7 +238,7 @@ std::unique_ptr<Statement> Parser::parseWhileStmt() {
     return std::make_unique<WhileStmt>(std::move(condition), std::move(whileBody), whilePos);
 }
 
-// var_or_func_decl = type, identifier, (func_declaration | [var_decl_assign]), newline
+// var_or_func_decl = type, identifier, (func_declaration | [var_decl_assign])
 std::unique_ptr<Statement> Parser::parseVarOrFuncDecl() {
     Position startPos = peek().position;
     auto typeOpt = parseType();
@@ -243,14 +252,9 @@ std::unique_ptr<Statement> Parser::parseVarOrFuncDecl() {
 
     std::string name = std::get<std::string>(previous().value);
 
-    auto func = parseFuncDecl(type, name, startPos);
-    if (!func)
-        auto var = parseVarDeclAssign(type, name, startPos);
-    
-    if (!match(TokenType::NEWLINE_T))
-        error("Missing terminating newline", peek().position);
-
-    return (func ? func : var);
+    if (auto func = parseFuncDecl(type, name, startPos))
+        return func;
+    return parseVarDeclAssign(type, name, startPos);
 }
 
 // void_func_decl = "void", identifier, func_declaration, newline
@@ -382,7 +386,7 @@ std::unique_ptr<Statement> Parser::parseRetStmt() {
     return std::make_unique<RetStmt>(std::move(expression), retPos);
 }
 
-// id_arr_func_call = identifier, (func_call | ( array_idx, assign ) | assign), newline
+// id_arr_func_call = identifier, (func_call | assign)
 std::unique_ptr<Statement> Parser::parseIdArrFunCall() {
     if (!match(TokenType::IDENTIFIER_T))
         return nullptr;
@@ -390,27 +394,16 @@ std::unique_ptr<Statement> Parser::parseIdArrFunCall() {
     std::string name = std::get<std::string>(previous().value);
     Position pos = previous().position;
 
-    // TODO: MISSING NEWLINE CHECK!!!
     if (auto funCall = parseFunCall(name, pos))
         return std::make_unique<FunCallStmt>(std::move(funCall), pos);
 
-    std::unique_ptr<Expression> lhs = std::make_unique<Identifier>(name, pos);
+    return parseAssign(name, pos);
+}
 
-    // Parse array indexing
-    while (match(TokenType::L_SQUARE_T)) {
-        Position squarePos = previous().position;
-        auto indexExpr = parseExpression();
+// assign = [array_idx], assign_op, expression
+std::unique_ptr<Statement> Parser::parseAssign(std::string name, Position pos) {
+    auto lhs = parseArrayIdx(name, pos);
 
-        if (!indexExpr)
-            throw SyntaxError("Missing array index inside square brackets", previous().position);
-
-        if (!match(TokenType::R_SQUARE_T))
-            error("Missing closing square bracket", peek().position);
-
-        lhs = std::make_unique<ArrayExpr>(std::move(lhs), squarePos, std::move(indexExpr));
-    }
-    
-    // Parse assignment
     if (!match({TokenType::ASSIGN_T, TokenType::ADD_ASSIGN_T, TokenType::SUB_ASSIGN_T, TokenType::MULT_ASSIGN_T,
                 TokenType::DIV_ASSIGN_T, TokenType::MOD_ASSIGN_T, TokenType::CONCAT_ASSIGN_T}))
         throw SyntaxError("Expected assignment or function call", peek().position);
@@ -421,12 +414,30 @@ std::unique_ptr<Statement> Parser::parseIdArrFunCall() {
     if (!rhs)
         throw SyntaxError("Expected expression", peek().position);
     
-    if (!match(TokenType::NEWLINE_T))
-        error("Missing terminating newline", peek().position);
-
     return assTypeToObject[to_idx(assType)](std::move(lhs), assPos, std::move(rhs));
 }
 
+// array_idx = "[", expression, "]", {"[", expression, "]"}
+std::unique_ptr<Expression> Parser::parseArrayIdx(std::string name, Position pos) {
+    std::unique_ptr<Expression> arrayExpr = std::make_unique<Identifier>(name, pos);
+
+    while (match(TokenType::L_SQUARE_T)) {
+        Position squarePos = previous().position;
+        auto indexExpr = parseExpression();
+
+        if (!indexExpr)
+            throw SyntaxError("Missing array index inside square brackets", previous().position);
+
+        if (!match(TokenType::R_SQUARE_T))
+            error("Missing closing square bracket", peek().position);
+
+        arrayExpr = std::make_unique<ArrayExpr>(std::move(arrayExpr), squarePos, std::move(indexExpr));
+    }
+    
+    return arrayExpr;
+}
+
+// expression = logical_and, {"or", logical_and}
 std::unique_ptr<Expression> Parser::parseExpression() {
     auto leftFactor = parseAndExpr();
     if (!leftFactor)
@@ -444,6 +455,7 @@ std::unique_ptr<Expression> Parser::parseExpression() {
     return leftFactor;
 }
 
+// logical_and = equality, {"and", equality}
 std::unique_ptr<Expression> Parser::parseAndExpr() {
     auto leftFactor = parseEqualityExpr();
     if (!leftFactor)
@@ -461,6 +473,7 @@ std::unique_ptr<Expression> Parser::parseAndExpr() {
     return leftFactor;
 }
 
+// equality = relational, [ ("==" | "!="), relational]
 std::unique_ptr<Expression> Parser::parseEqualityExpr() {
     auto leftFactor = parseRelationalExpr();
     if (!leftFactor)
@@ -478,6 +491,7 @@ std::unique_ptr<Expression> Parser::parseEqualityExpr() {
     return leftFactor;
 }
 
+// relational = arr_ops, [ ("<" | ">" | "<=" | ">="), arr_ops]
 std::unique_ptr<Expression> Parser::parseRelationalExpr() {
     auto leftFactor = parseArrayOpsExpr();
     if (!leftFactor)
@@ -495,6 +509,7 @@ std::unique_ptr<Expression> Parser::parseRelationalExpr() {
     return leftFactor;
 }
 
+// arr_ops = additive, { ("~" | "&" | ":" | "<<" | ">>"), additive }
 std::unique_ptr<Expression> Parser::parseArrayOpsExpr() {
     auto leftFactor = parseAdditiveExpr();
     if(!leftFactor)
@@ -512,6 +527,7 @@ std::unique_ptr<Expression> Parser::parseArrayOpsExpr() {
     return leftFactor;
 }
 
+// additive = multipl, { ("+" | "-"), multipl }
 std::unique_ptr<Expression> Parser::parseAdditiveExpr() {
     auto leftFactor = parseMultiplExpr();
     if (!leftFactor)
@@ -529,6 +545,7 @@ std::unique_ptr<Expression> Parser::parseAdditiveExpr() {
     return leftFactor;
 }
 
+// multipl = unary, { ("*" | "/" | "%" ), unary }
 std::unique_ptr<Expression> Parser::parseMultiplExpr() {
     auto leftFactor = parseUnaryExpr();
     if (!leftFactor)
@@ -546,6 +563,7 @@ std::unique_ptr<Expression> Parser::parseMultiplExpr() {
     return leftFactor;
 }
 
+// unary = ["+" | "-" | "not"], postfix
 std::unique_ptr<Expression> Parser::parseUnaryExpr() {
     if (match({TokenType::PLUS_T, TokenType::MINUS_T, TokenType::NOT_T})) {
         TokenType unaryType = previous().type;
@@ -563,6 +581,7 @@ std::unique_ptr<Expression> Parser::parseUnaryExpr() {
     return factor;
 }
 
+// postfix = type_cast, ["!"]
 std::unique_ptr<Expression> Parser::parsePostfix() {
     auto factor = parseTypeCast();
     if (!factor)
@@ -574,6 +593,7 @@ std::unique_ptr<Expression> Parser::parsePostfix() {
     return factor;
 }
 
+// type_cast = arr_expr, {"as", ("int" | "flp" | "bool" | "str")}
 std::unique_ptr<Expression> Parser::parseTypeCast() {
     auto factor = parseArrayExpr();
     if (!factor)
@@ -594,6 +614,7 @@ std::unique_ptr<Expression> Parser::parseTypeCast() {
     return factor;
 }
 
+// arr_expr = subject, {"[", expression, "]"}
 std::unique_ptr<Expression> Parser::parseArrayExpr() {
     auto arrObj = parseSubject();
     if (!arrObj)
@@ -614,6 +635,7 @@ std::unique_ptr<Expression> Parser::parseArrayExpr() {
     return arrObj;
 }
 
+// subject = id_or_func_call | literal | nested_expr
 std::unique_ptr<Expression> Parser::parseSubject() {
     if (auto exp = parseIdOrFunCall())
         return exp;
@@ -625,6 +647,7 @@ std::unique_ptr<Expression> Parser::parseSubject() {
     throw SyntaxError("Invalid expression", peek().position);
 } 
 
+// id_or_func_call = identifier, [func_call]
 std::unique_ptr<Expression> Parser::parseIdOrFunCall() {
     if (!match(TokenType::IDENTIFIER_T))
         return nullptr;
@@ -638,23 +661,12 @@ std::unique_ptr<Expression> Parser::parseIdOrFunCall() {
     return std::make_unique<Identifier>(idName, idPosition);
 } 
 
+// func_call = "(", [ arguments ], ")"
 std::unique_ptr<Expression> Parser::parseFunCall(std::string name, Position position) {
     if (!match(TokenType::L_BRACKET_T))
         return nullptr;
     
-    std::vector<std::unique_ptr<Expression>> arguments {};
-    auto argument = parseExpression();
-    if (argument) {
-        arguments.push_back(std::move(argument));
-
-        while (match(TokenType::COMMA_T)) {
-            Position argPos = peek().position;
-            argument = parseExpression();
-            if (!argument)
-                throw SyntaxError("Invalid argument", argPos); 
-            arguments.push_back(std::move(argument));
-        }
-    }
+    std::vector<std::unique_ptr<Expression>> arguments = parseArguments();
 
     if (!match(TokenType::R_BRACKET_T))
         error("Missing closing bracket", peek().position);
@@ -662,6 +674,26 @@ std::unique_ptr<Expression> Parser::parseFunCall(std::string name, Position posi
     return std::make_unique<FunCall>(name, std::move(arguments), position);
 }
 
+// arguments = expression, {",", expression}
+std::vector<std::unique_ptr<Expression>> Parser::parseArguments() {
+    std::vector<std::unique_ptr<Expression>> arguments {};
+    auto argument = parseExpression();
+    if (!argument)
+        return arguments;
+
+    arguments.push_back(std::move(argument));
+    while (match(TokenType::COMMA_T)) {
+        Position argPos = peek().position;
+        argument = parseExpression();
+        if (!argument)
+            throw SyntaxError("Invalid argument", argPos); 
+        arguments.push_back(std::move(argument));
+    }
+
+    return arguments;
+}
+
+// literal = int_lit | flp_lit | str_lit | bool_lit | arr_lit
 std::unique_ptr<Expression> Parser::parseLiterals() {
     if (match(TokenType::INT_VALUE_T)) 
         return std::make_unique<IntLit>(std::get<int>(previous().value), previous().position);
@@ -679,6 +711,7 @@ std::unique_ptr<Expression> Parser::parseLiterals() {
     return nullptr; 
 } 
 
+// arr_lit = "[", [ expression, {",", expression} ], "}"
 std::unique_ptr<Expression> Parser::parseArrayLiteral() {
     if (!match(TokenType::L_SQUARE_T)) 
         return nullptr;
@@ -707,6 +740,7 @@ std::unique_ptr<Expression> Parser::parseArrayLiteral() {
     return std::make_unique<ArrayLit>(std::move(values), arrPos);
 }
 
+// nested_expr = "(", expression, ")"
 std::unique_ptr<Expression> Parser::parseNestedExpr() {
     if (!match(TokenType::L_BRACKET_T))
         return nullptr;
