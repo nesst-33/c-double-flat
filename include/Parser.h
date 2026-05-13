@@ -1,12 +1,16 @@
 #ifndef _PARSER_H
 #define _PARSER_H
 
+#include <algorithm>
 #include <array>
 #include <initializer_list>
 #include <memory>
+#include <string>
 #include <sys/syslimits.h>
 #include <utility>
 #include <vector>
+#include <unordered_map>
+#include <format>
 #include "Lexer.h"
 #include "Token.h"
 #include "Node.h"
@@ -21,6 +25,7 @@ class SyntaxError : public std::runtime_error
 public:
     SyntaxError(const std::string& msg, Position pos)
         : std::runtime_error("Syntax Error: " + msg), m_pos(pos) {}
+    const Position& getPosition() const { return m_pos; }
 private:
     Position m_pos;
 };
@@ -139,19 +144,52 @@ private:
     static inline const auto binaryOpTypeToObject = createBinOpTable();
     static inline const auto unaryOpTypeToObject = createUnaryOpTable();
     static inline const auto assTypeToObject = createAssignTable();
+    
+    static std::unordered_map<std::string_view, Position> functionMap;
+
 
     void error(std::string_view message, Position tokenPos) {}
 
     Token peek() const { return currToken; }
     Token previous() const { return prevToken; }
 
+    void synchronize() {
+        while (!isAtEnd()) {
+            switch(peek().type) {
+                case TokenType::IF_T:
+                case TokenType::WHILE_T:
+                case TokenType::L_BRACE_T:
+                case TokenType::INT_T:
+                case TokenType::FLP_T:
+                case TokenType::STR_T:
+                case TokenType::BOOL_T:
+                case TokenType::VOID_T:
+                case TokenType::ARR_T:
+                case TokenType::IDENTIFIER_T:
+                case TokenType::RETURN_T:
+                    return;
+                default:
+                    continue;
+            }
+            advance();
+        }
+    }
+
+
+    std::unique_ptr<Program> parse() {
+        std::vector<std::unique_ptr<Statement>> statements{};
+        while(!isAtEnd())
+            if (auto statement = parseStatement())
+                statements.push_back(std::move(statement));
+
+        return std::make_unique<Program>(std::move(statements));
+    }
+
     std::unique_ptr<Statement> parseStatement() {
-
+        
         // Ignore lines that are pure newline
-        while (match({TokenType::NEWLINE_T}));
+        while (match(TokenType::NEWLINE_T));
 
-        // I'll parse the trailing newline in the methods below (not outside like EBNF suggests)
-        // TODO: try-catch
         try {
             if (auto st = parseIfStmt())        
                 return st;
@@ -162,19 +200,77 @@ private:
                     error("Missing terminating newline", peek().position);
                 return st;
             }
-            // TODO: dodać słownik typu <string, FuncDecl>, który będzie przechowywał zadeklarowane funkcje
-            // jeśli deklaracja się powtórzy, to błąd
             if (auto st = parseVarOrFuncDecl())
                 return st;
             if (auto st = parseVoidFuncDecl())        
                 return st;
             if (auto st = parseIdArrFunCall())
                 return st;
-        } catch (SyntaxError e) {}
-        error("Invalid statement", peek().position);
+        } catch (SyntaxError e) {
+            error(std::format("Invalid statement: {}", e.what()), e.getPosition());
+            synchronize();
+        }
+
         return nullptr;
     }
 
+    std::unique_ptr<Statement> parseScope() {
+        if (!match(TokenType::L_BRACE_T))
+            return nullptr;
+        Position scopePos = previous().position;
+
+        std::vector<std::unique_ptr<Statement>> statements {};
+        while (!match(TokenType::R_BRACE_T)) {
+            if (auto statement = parseScopedStmt())
+                statements.push_back(std::move(statement));
+        }
+        
+
+        return std::make_unique<Scope>(std::move(statements), scopePos);
+    }
+
+    std::unique_ptr<Statement> parseScopedStmt() {
+        while(match(TokenType::NEWLINE_T));
+
+        try {
+            if (auto st = parseIfStmt())
+                return st;
+            if (auto st = parseWhileStmt())
+                return st;
+            if (auto st = parseScope()) {
+                if (!match(TokenType::NEWLINE_T))
+                    error("Missing terminating newline", peek().position);
+                return st;
+            }
+            if (auto st = parseIdArrFunCall())
+                return st;
+            if (auto st = parseVarDecl())
+                return st;
+            if (auto st = parseRetStmt())
+                return st;
+        } catch (SyntaxError e) {
+            error(std::format("Syntax error: {}", e.what()), e.getPosition());
+            synchronize();
+        }
+
+        return nullptr;
+    }
+
+    std::unique_ptr<Statement> parseVarDecl() {
+        Position startPos = peek().position;
+        auto typeOpt = parseType();
+        if (!typeOpt)
+            return nullptr;
+        TypeInfo type = *typeOpt;
+        if (!match(TokenType::IDENTIFIER_T))
+            throw SyntaxError("Expected identifier name after type", peek().position);
+
+        std::string name = std::get<std::string>(previous().value);
+        
+        return parseVarDeclTail(type, name, startPos);
+    }
+
+    
     std::unique_ptr<Statement> parseIfStmt() {
         if (!match(TokenType::IF_T))
             return nullptr;
@@ -230,15 +326,6 @@ private:
         return elseBody;
     }
 
-    std::unique_ptr<Statement> parseScope() {
-        if (!match(TokenType::L_BRACE_T))
-            return nullptr;
-
-        match(TokenType::NEWLINE_T);
-
-
-        return nullptr;
-    }
 
     std::unique_ptr<Statement> parseWhileStmt() {
         if (!match(TokenType::WHILE_T))
@@ -278,7 +365,7 @@ private:
         if (!match(TokenType::NEWLINE_T))
             error("Missing terminating newline", peek().position);
 
-        return parseVarDecl(type, name, startPos);
+        return parseVarDeclTail(type, name, startPos);
     }
 
     std::unique_ptr<Statement> parseVoidFuncDecl() {
@@ -316,10 +403,16 @@ private:
         if (!body)
             throw SyntaxError("Missing function body", peek().position);
 
+        // Czy tym nie powinien się zajmować interpreter (Environment)?
+        if (auto search = functionMap.find(name); search == functionMap.end())
+            functionMap.insert({name, pos});
+        else
+            throw SyntaxError("Function redefinition", pos);
+
         return std::make_unique<FuncDeclStmt>(type, name, std::move(params), std::move(body), pos);
     }
 
-    std::unique_ptr<Statement> parseVarDecl(TypeInfo type, std::string name, Position pos) {
+    std::unique_ptr<Statement> parseVarDeclTail(TypeInfo type, std::string name, Position pos) {
         std::unique_ptr<Expression> initializer;
         if (match(TokenType::ASSIGN_T)) {
             initializer = parseExpression();
@@ -733,19 +826,19 @@ private:
     
     bool isAtEnd() const { return peek().type == TokenType::EOT; }
 
-    Token advance() 
+    void advance() 
     { 
-        if (isAtEnd()) return prevToken;
+        if (isAtEnd()) return;  // = prevToken;
 
         prevToken = currToken;        
         currToken = m_lexer.getToken();
 
         while (currToken.type == TokenType::COMMENT_T) {
-            if (isAtEnd()) return prevToken;
+            if (isAtEnd()) return; // = prevToken;
             currToken = m_lexer.getToken();
         }
 
-        return prevToken;
+        return; // = prevToken;
     }
 
     bool check(TokenType type) const {

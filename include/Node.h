@@ -305,10 +305,10 @@ private:
 
 class Scope : public Statement {
 public:
-    Scope(std::vector<std::unique_ptr<Expression>> statements, Position pos)
+    Scope(std::vector<std::unique_ptr<Statement>> statements, Position pos)
         : Statement(pos), m_statements(std::move(statements)) {}
 private:
-    std::vector<std::unique_ptr<Expression>> m_statements;
+    std::vector<std::unique_ptr<Statement>> m_statements;
 };
 
 class VarOrFuncDecl : public Statement {};
