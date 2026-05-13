@@ -1,10 +1,24 @@
 #include "Parser.h"
+#include <algorithm>
+#include <memory>
+#include <vector>
 
+// std::unique_ptr<Program> Parser::parse() {
+//     std::vector<std::unique_ptr<Statement>> statements{};
+//     while(!isAtEnd())
+//         if (auto statement = parseStatement())
+//             statements.push_back(std::move(statement));
+// 
+//     return std::make_unique<Program>(std::move(statements));
+// }
+
+// program = { statement }, EOT ;
 std::unique_ptr<Program> Parser::parse() {
     std::vector<std::unique_ptr<Statement>> statements{};
-    while(!isAtEnd())
-        if (auto statement = parseStatement())
-            statements.push_back(std::move(statement));
+    while (auto statement = parseStatement())
+        statements.push_back(std::move(statement));
+    if (!isAtEnd())
+        throw SyntaxError("Expected end of file", peek().position);
 
     return std::make_unique<Program>(std::move(statements));
 }
@@ -31,12 +45,12 @@ void Parser::synchronize() {
     }
 }
 
-
 std::unique_ptr<Statement> Parser::parseStatement() {
     
     // Ignore lines that are pure newline
     while (match(TokenType::NEWLINE_T));
 
+    // TODO: move SyntaxError do parse()
     try {
         if (auto st = parseIfStmt())        
             return st;
@@ -83,6 +97,7 @@ std::unique_ptr<Statement> Parser::parseScopedStmt() {
         if (auto st = parseWhileStmt())
             return st;
         if (auto st = parseScope()) {
+            // TODO: change to method
             if (!match(TokenType::NEWLINE_T))
                 error("Missing terminating newline", peek().position);
             return st;
@@ -115,6 +130,7 @@ std::unique_ptr<Statement> Parser::parseVarDecl() {
     return parseVarDeclTail(type, name, startPos);
 }
 
+// TODO: dodać produkcje
 std::unique_ptr<Statement> Parser::parseIfStmt() {
     if (!match(TokenType::IF_T))
         return nullptr;
@@ -394,7 +410,6 @@ std::unique_ptr<Expression> Parser::parseExpression() {
     return leftFactor;
 }
 
-// Uogólnić do parseBinaryOp()??
 std::unique_ptr<Expression> Parser::parseAndExpr() {
     auto leftFactor = parseEqualityExpr();
     if (!leftFactor)
@@ -412,3 +427,260 @@ std::unique_ptr<Expression> Parser::parseAndExpr() {
     return leftFactor;
 }
 
+std::unique_ptr<Expression> Parser::parseEqualityExpr() {
+    auto leftFactor = parseRelationalExpr();
+    if (!leftFactor)
+        return nullptr;
+
+    if (match({TokenType::EQ_T, TokenType::NOT_EQ_T})) {
+        TokenType eqType = previous().type;
+        Position eqPosition = previous().position;
+        auto rightFactor = parseRelationalExpr();
+        if (!rightFactor)
+            throw SyntaxError("Missing expression after equality operator", peek().position);
+        leftFactor = binaryOpTypeToObject[to_idx(eqType)](std::move(leftFactor), eqPosition, std::move(rightFactor));
+    }
+
+    return leftFactor;
+}
+
+std::unique_ptr<Expression> Parser::parseRelationalExpr() {
+    auto leftFactor = parseArrayOpsExpr();
+    if (!leftFactor)
+        return nullptr;
+
+    if (match({TokenType::LESSER_T, TokenType::LESSER_EQ_T, TokenType::GREATER_T, TokenType::GREATER_EQ_T})) {
+        TokenType relType = previous().type;
+        Position eqPosition = previous().position;
+        auto rightFactor = parseArrayOpsExpr();
+        if (!rightFactor)
+            throw SyntaxError("Missing expression after inequality operator", peek().position);
+        leftFactor = binaryOpTypeToObject[to_idx(relType)](std::move(leftFactor), eqPosition, std::move(rightFactor));
+    }
+
+    return leftFactor;
+}
+
+std::unique_ptr<Expression> Parser::parseArrayOpsExpr() {
+    auto leftFactor = parseAdditiveExpr();
+    if(!leftFactor)
+        return nullptr;
+
+    while (match({TokenType::CONCAT_T, TokenType::CONJUN_T, TokenType::SPLIT_T, TokenType::APPEND_T, TokenType::EXTRACT_T})) {
+        TokenType arrOpType = previous().type;
+        Position arrOpPosition = previous().position;
+        auto rightFactor = parseAdditiveExpr();
+        if (!rightFactor)
+            throw SyntaxError("Missing expression after array operator", peek().position);
+        leftFactor = binaryOpTypeToObject[to_idx(arrOpType)](std::move(leftFactor), arrOpPosition, std::move(rightFactor));
+    }
+
+    return leftFactor;
+}
+
+std::unique_ptr<Expression> Parser::parseAdditiveExpr() {
+    auto leftFactor = parseMultiplExpr();
+    if (!leftFactor)
+        return nullptr;
+    
+    while (match({TokenType::PLUS_T, TokenType::MINUS_T})) {
+        TokenType addType = previous().type;
+        Position addPosition = previous().position;
+        auto rightFactor = parseMultiplExpr();
+        if (!rightFactor)
+            throw SyntaxError("Missing expression after additive operator", peek().position);
+        leftFactor = binaryOpTypeToObject[to_idx(addType)](std::move(leftFactor), addPosition, std::move(rightFactor));
+    }
+
+    return leftFactor;
+}
+
+std::unique_ptr<Expression> Parser::parseMultiplExpr() {
+    auto leftFactor = parseUnaryExpr();
+    if (!leftFactor)
+        return nullptr;
+
+    while (match({TokenType::MULT_T, TokenType::DIV_T, TokenType::MOD_T})) {
+        TokenType multType = previous().type;
+        Position multPosition = previous().position;
+        auto rightFactor = parseMultiplExpr();
+        if (!rightFactor)
+            throw SyntaxError("Missing experssion after multiplicative operator", peek().position);
+        leftFactor = binaryOpTypeToObject[to_idx(multType)](std::move(leftFactor), multPosition, std::move(rightFactor));
+    }
+
+    return leftFactor;
+}
+
+std::unique_ptr<Expression> Parser::parseUnaryExpr() {
+    if (match({TokenType::PLUS_T, TokenType::MINUS_T, TokenType::NOT_T})) {
+        TokenType unaryType = previous().type;
+        Position unaryPosition = previous().position;
+        auto factor = parsePostfix();
+        if (!factor) 
+            throw SyntaxError("Stray operator", unaryPosition);
+        return unaryOpTypeToObject[to_idx(unaryType)](std::move(factor), unaryPosition); 
+    }
+    
+    auto factor = parsePostfix();
+    if (!factor)
+        return nullptr;
+
+    return factor;
+}
+
+std::unique_ptr<Expression> Parser::parsePostfix() {
+    auto factor = parseTypeCast();
+    if (!factor)
+        return nullptr;
+
+    if (match(TokenType::CARDINALITY_T))
+        factor = unaryOpTypeToObject[to_idx(TokenType::CARDINALITY_T)](std::move(factor), previous().position);
+
+    return factor;
+}
+
+std::unique_ptr<Expression> Parser::parseTypeCast() {
+    auto factor = parseArrayExpr();
+    if (!factor)
+        return nullptr;
+
+    while (match(TokenType::AS_T)) {
+        Position asPosition = previous().position;
+
+        // TODO: zamiast 4 klas 1
+        if (match({TokenType::STR_T, TokenType::INT_T, TokenType::BOOL_T, TokenType::FLP_T})) {
+            TokenType type = previous().type;
+            factor = unaryOpTypeToObject[to_idx(type)](std::move(factor), asPosition);
+        }
+        else 
+            throw SyntaxError("Invalid type in type cast", peek().position);
+    }
+
+    return factor;
+}
+
+std::unique_ptr<Expression> Parser::parseArrayExpr() {
+    auto arrObj = parseSubject();
+    if (!arrObj)
+        return nullptr;
+
+
+    while (match(TokenType::L_SQUARE_T)) {
+        Position squarePos = previous().position;
+        auto indexExpr = parseExpression();
+        if (!indexExpr)
+            throw SyntaxError("Missing or invalid array index/predicate inside square brackets", previous().position);
+        arrObj = std::make_unique<ArrayExpr>(std::move(arrObj), squarePos, std::move(indexExpr));
+
+        if (!match(TokenType::R_SQUARE_T))
+            error("Missing closing square bracket", peek().position);
+    }
+
+    return arrObj;
+}
+
+std::unique_ptr<Expression> Parser::parseSubject() {
+    if (auto exp = parseIdOrFunCall())
+        return exp;
+    if (auto exp = parseLiterals())
+        return exp;
+    if (auto exp = parseNestedExpr())
+        return exp;
+      
+    throw SyntaxError("Invalid expression", peek().position);
+} 
+
+std::unique_ptr<Expression> Parser::parseIdOrFunCall() {
+    if (!match(TokenType::IDENTIFIER_T))
+        return nullptr;
+
+    std::string idName = std::get<std::string>(previous().value);
+    Position idPosition = previous().position;
+
+    if (auto exp = parseFunCall(idName, idPosition))
+        return exp;
+
+    return std::make_unique<Identifier>(idName, idPosition);
+} 
+
+std::unique_ptr<Expression> Parser::parseFunCall(std::string name, Position position) {
+    if (!match(TokenType::L_BRACKET_T))
+        return nullptr;
+    
+    std::vector<std::unique_ptr<Expression>> arguments {};
+    auto argument = parseExpression();
+    if (argument) {
+        arguments.push_back(std::move(argument));
+
+        while (match(TokenType::COMMA_T)) {
+            Position argPos = peek().position;
+            argument = parseExpression();
+            if (!argument)
+                throw SyntaxError("Invalid argument", argPos); 
+            arguments.push_back(std::move(argument));
+        }
+    }
+
+    if (!match(TokenType::R_BRACKET_T))
+        error("Missing closing bracket", peek().position);
+
+    return std::make_unique<FunCall>(name, std::move(arguments), position);
+}
+
+std::unique_ptr<Expression> Parser::parseLiterals() {
+    if (match(TokenType::INT_VALUE_T)) 
+        return std::make_unique<IntLit>(std::get<int>(previous().value), previous().position);
+    if (match(TokenType::FLP_VALUE_T))
+        return std::make_unique<FlpLit>(std::get<double>(previous().value), previous().position);
+    if (match(TokenType::STR_VALUE_T))
+        return std::make_unique<StrLit>(std::get<std::string>(previous().value), previous().position);
+    if (match(TokenType::TRUE_T))
+        return std::make_unique<BoolLit>(true, previous().position);
+    if (match(TokenType::FALSE_T))
+        return std::make_unique<BoolLit>(false, previous().position);
+    if (auto arr = parseArrayLiteral())
+        return arr;
+
+    return nullptr; 
+} 
+
+std::unique_ptr<Expression> Parser::parseArrayLiteral() {
+    if (!match(TokenType::L_SQUARE_T)) 
+        return nullptr;
+
+    Position arrPos = previous().position;
+    std::vector<std::unique_ptr<Expression>> values {};
+    auto value = parseExpression();
+    if (value) {
+        values.push_back(std::move(value));
+        
+        while (match(TokenType::COMMA_T)) {
+            Position valPos = peek().position;
+            value = parseExpression();
+            if (!value)
+                throw SyntaxError("Invalid expression in array literal", valPos);
+            values.push_back(std::move(value));
+        }
+    }
+
+    if (!match(TokenType::R_SQUARE_T))
+        error("Missing closing square bracket in array literal", peek().position);
+
+    // TODO: zamienić na template z Varargs (...)
+    // Args&&...
+    // + requires(std::constructible_from<Node>, Args..., Position>)
+    return std::make_unique<ArrayLit>(std::move(values), arrPos);
+}
+
+std::unique_ptr<Expression> Parser::parseNestedExpr() {
+    if (!match(TokenType::L_BRACKET_T))
+        return nullptr;
+    
+    auto expr = parseExpression();
+
+    if (!match(TokenType::R_BRACKET_T))
+        error("Missing closing parenthesis", peek().position);
+
+    return expr;
+}

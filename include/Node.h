@@ -311,9 +311,6 @@ private:
     std::vector<std::unique_ptr<Statement>> m_statements;
 };
 
-class VarOrFuncDecl : public Statement {};
-class VoidFuncDecl : public Statement {};
-
 class RetStmt : public Statement {
 public:
     RetStmt(std::unique_ptr<Expression> expr, Position pos)
