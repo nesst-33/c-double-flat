@@ -30,7 +30,6 @@ private:
 };
 
 // Do zamiany enum na size_t
-// TODO: zamienić na to_underlyingtype
 template <typename T>
 constexpr auto to_idx(T e) {
     return static_cast<std::size_t>(e);
@@ -153,13 +152,15 @@ private:
     std::unique_ptr<Statement> parseScopedStmt();
     std::unique_ptr<Statement> parseVarDecl();
     std::unique_ptr<Statement> parseIfStmt();
+    std::unique_ptr<Statement> parseIfTail();
     std::unique_ptr<Expression> parseCondition();
+    std::unique_ptr<Statement> parseElseStmt(); 
     std::unique_ptr<Statement> parseElseBody();
     std::unique_ptr<Statement> parseWhileStmt();
     std::unique_ptr<Statement> parseVarOrFuncDecl();
     std::unique_ptr<Statement> parseVoidFuncDecl();
     std::unique_ptr<Statement> parseFuncDecl(TypeInfo type, std::string name, Position pos); 
-    std::unique_ptr<Statement> parseVarDeclTail(TypeInfo type, std::string name, Position pos);
+    std::unique_ptr<Statement> parseVarDeclAssign(TypeInfo type, std::string name, Position pos);
     std::unique_ptr<Statement> parseRetStmt(); 
     std::unique_ptr<Statement> parseIdArrFunCall(); 
 
