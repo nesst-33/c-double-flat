@@ -1,1 +1,7 @@
+build/
 .DS_Store
+compile_commands.json
+.clangd
+.cache/
+Testing/
+macro_test.sh
