@@ -321,6 +321,7 @@ public:
     Program(std::vector<std::unique_ptr<Statement>> statements) 
         : m_statements(std::move(statements)) {}
     void accept(Visitor &v) override; 
+    const auto& getStatements() const { return m_statements; }
 private:
     std::vector<std::unique_ptr<Statement>> m_statements{};
 };
@@ -330,6 +331,7 @@ public:
     FunCallStmt(std::unique_ptr<Expression> funCall, Position pos)
         : m_funCall(std::move(funCall)), Statement(pos) {}
     void accept(Visitor &v) override; 
+    const auto& getFunCall() const { return m_funCall; }
 private:
     std::unique_ptr<Expression> m_funCall;
 };
@@ -341,11 +343,13 @@ public:
         : m_condition(std::move(condition)), m_scope(std::move(scope))
         , m_else(std::move(elseStmt)), Statement(position) {}
     void accept(Visitor &v) override; 
+    const auto& getCondition() const { return m_condition; }
+    const auto& getScope() const { return m_scope; }
+    const auto& getElse() const { return m_else; }
 private:
     std::unique_ptr<Expression> m_condition;
     std::unique_ptr<Statement> m_scope;
     std::unique_ptr<Statement> m_else;
-    Position m_position;
 };
 
 class WhileStmt : public Statement {
@@ -353,10 +357,11 @@ public:
     WhileStmt(std::unique_ptr<Expression> condition, std::unique_ptr<Statement> body, Position position)
         : m_condition(std::move(condition)), m_body(std::move(body)), Statement(position) {}
     void accept(Visitor &v) override; 
+    const auto& getCondition() const { return m_condition; }
+    const auto& getBody() const { return m_body; }
 private:
     std::unique_ptr<Expression> m_condition;
     std::unique_ptr<Statement> m_body;
-    Position m_position;
 };
 
 class Scope : public Statement {
@@ -364,6 +369,7 @@ public:
     Scope(std::vector<std::unique_ptr<Statement>> statements, Position pos)
         : Statement(pos), m_statements(std::move(statements)) {}
     void accept(Visitor &v) override; 
+    const auto& getStatements() const { return m_statements; }
 private:
     std::vector<std::unique_ptr<Statement>> m_statements;
 };
@@ -390,7 +396,9 @@ public:
         , m_name(std::move(name))
         , m_initializer(std::move(initializer)) {}
     void accept(Visitor &v) override; 
-
+    const TypeInfo& getType() const { return m_type; }
+    const std::string& getName() const { return m_name; }
+    const auto& getInitializer() const { return m_initializer; }
 private:
     TypeInfo m_type;
     std::string m_name;
@@ -410,6 +418,10 @@ public:
         , m_params(std::move(params))
         , m_body(std::move(body)) {}
     void accept(Visitor &v) override; 
+    const TypeInfo& getTypeInfo() const { return m_returnType; }
+    const std::string& getName() const { return m_name; }
+    const auto& getParams() const { return m_params; }
+    const auto& getBody() const { return m_body; }
 private:
     TypeInfo m_returnType;
     std::string m_name;

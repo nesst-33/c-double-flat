@@ -7,6 +7,8 @@
 #define BUF_ALLOC_SIZE 512
 
 enum class BaseType;
+struct TypeInfo;
+struct Parameter;
 
 class ASTPrinter : public Visitor {
 public:
@@ -20,6 +22,9 @@ AST_NODE_LIST(VISIT_DECL)
 
 private:
     std::string result;
+    int indentLevel{};
+
+    void printIndent() { result += std::string(indentLevel, '\t'); }
 
     void printList(const auto& list) {
         for (size_t i{}; i<list.size(); i++) {
@@ -30,6 +35,8 @@ private:
     }
 
     void printType(BaseType type); 
+    void printTypeInfo(TypeInfo typeInfo);
+    void printParam(Parameter param);
 
 };
 

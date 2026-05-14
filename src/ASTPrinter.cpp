@@ -14,8 +14,25 @@ void ASTPrinter::printType(BaseType type) {
         case BaseType::BOOL:
             result += "bool";
         case BaseType::VOID:
-            result += "bool";
+            result += "void";
     }
+}
+
+void ASTPrinter::printTypeInfo(TypeInfo typeInfo) {
+    if (typeInfo.isConst)
+        result += "const ";
+
+    for (int i{}; i < typeInfo.arrayDepth; i++) {
+        result += "arr ";
+    }
+
+    printType(typeInfo.type);
+    result += " ";
+}
+
+void ASTPrinter::printParam(Parameter param) {
+    printTypeInfo(param.type);
+    result += param.name;
 }
 
 void ASTPrinter::visit(const IntLit& node) {
@@ -279,5 +296,69 @@ void ASTPrinter::visit(const ConcatAssignStmt& node) {
 void ASTPrinter::visit(const RetStmt& node) {
     result += "return ";
     node.getExpr()->accept(*this);
+}
+
+void ASTPrinter::visit(const VarDeclStmt& node) {
+    printTypeInfo(node.getType()); 
+    result += node.getName();
+    const auto& initializer = node.getInitializer();
+    if (initializer) {
+        result += " ";
+        initializer->accept(*this);
+    }
+}
+
+void ASTPrinter::visit(const Scope& node) {
+    result += "{";
+    indentLevel++;
+    for (const auto& stmt : node.getStatements()) {
+        printIndent();
+        stmt->accept(*this);
+        result += "\n";
+    }
+    indentLevel--;
+    result += "}";
+}
+
+void ASTPrinter::visit(const IfStmt& node) {
+    result += "if (";
+    node.getCondition()->accept(*this);
+    result += ")\n";
+
+    node.getScope()->accept(*this);
+    result += "\nelse\n";
+    node.getElse()->accept(*this);
+}
+
+void ASTPrinter::visit(const WhileStmt& node) {
+    result += "while (";
+    node.getCondition()->accept(*this);
+    result += ")\n";
+    node.getBody()->accept(*this);
+}
+
+void ASTPrinter::visit(const FuncDeclStmt& node) {
+    printTypeInfo(node.getTypeInfo());
+    result += node.getName();
+    result += "(";
+    const auto& params = node.getParams();
+    for (size_t i{}; i < params.size(); i++) {
+        printParam(params[i]);
+        if (i < params.size() - 1)
+            result += ", ";
+    }
+    result += ")\n";
+    node.getBody()->accept(*this);
+}
+
+void ASTPrinter::visit(const FunCallStmt& node) {
+    node.getFunCall()->accept(*this);
+}
+
+void ASTPrinter::visit(const Program& node) {
+    for (const auto& statement : node.getStatements()) {
+        statement->accept(*this);
+        result += "\n";
+    }
 }
 
