@@ -50,11 +50,14 @@ void ASTPrinter::visit(const StrLit& node) {
 }
 
 void ASTPrinter::visit(const FlpLit& node) {
-    result += node.getValue();
+    result += std::to_string(node.getValue());
 }
 
 void ASTPrinter::visit(const BoolLit& node) {
-    result += node.getValue();
+    if (node.getValue())
+        result += "true";
+    else 
+        result += "false";
 }
 
 void ASTPrinter::visit(const ArrayLit& node) {

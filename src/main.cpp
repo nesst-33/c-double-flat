@@ -59,6 +59,9 @@ int main()
         return a[0][try(_, 5)]
     }
     arr test = 5
+    int parenth_test = (5 + 2) / 3
+    flp y = .14
+    bl = true
         )";
 
     std::deque<Token> tokenized = lex(source);
