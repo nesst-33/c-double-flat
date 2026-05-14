@@ -5,6 +5,7 @@
 #include <initializer_list>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <sys/syslimits.h>
 #include <utility>
 #include <vector>
@@ -208,25 +209,47 @@ private:
         return peek().type == type;
     }
 
-    bool match(TokenType type) {
-        if (check(type)) {
+
+    template<typename... Args>
+    bool match(Args... types) {
+        if (((check(types)) || ...)) {
             advance();
             return true;
         }
         return false;
     }
 
-    bool match(std::initializer_list<TokenType> types) {
-        // TODO: zamienić na ...
-        // If the token is in the types list, consume it
-        for (TokenType type : types) {
-            if (check(type)) {
-                advance();
-                return true;
-            }
-        }
-        return false;
+    template <typename T>
+    void throwIfMissing(const T& arg, const std::string& message, std::optional<Position> pos = std::nullopt) {
+        if (!arg)
+            throw SyntaxError(message, pos.value_or(peek().position));
     }
+
+    void consume(TokenType type, std::string_view message) {
+        if (!match(type))
+            error(message, peek().position);
+    }
+
+
+     // bool match(TokenType type) {
+     //     if (check(type)) {
+     //         advance();
+     //         return true;
+     //     }
+     //     return false;
+     // }
+
+     // bool match(std::initializer_list<TokenType> types) {
+     //     // TODO: zamienić na ...
+     //     // If the token is in the types list, consume it
+     //     for (TokenType type : types) {
+     //         if (check(type)) {
+     //             advance();
+     //             return true;
+     //         }
+     //     }
+     //     return false;
+     // }
 
 
     
