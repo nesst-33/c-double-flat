@@ -1,10 +1,14 @@
+#ifndef _NODE_H
+#define _NODE_H
+
 #include <algorithm>
 #include <utility>
 #include <vector>
 #include <memory>
 #include "Token.h"
 
-class Node {};
+class Visitor;
+
 
 // Type info for declarations
 enum class BaseType { INT, FLP, STR, BOOL, VOID };
@@ -21,6 +25,13 @@ struct Parameter {
     Position pos;
 };
 
+// BASE NODE CLASS
+class Node {
+public:
+    virtual ~Node() = default;
+    virtual void accept(Visitor& v) = 0;
+};
+
 // EXPRESSIONS
 class Expression : public Node {
 public:
@@ -33,6 +44,7 @@ public:
             BaseType type,
             Position asPos)
     : m_castedExpr(std::move(castedExpr)), m_type(type), m_asPos(asPos) {}
+    void accept(Visitor& v) override;
 private:
     std::unique_ptr<Expression> m_castedExpr;
     BaseType m_type;
@@ -57,97 +69,116 @@ private:
 class AndExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class OrExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class AddExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class SubExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class DivExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class MultExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class ModExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class ConcatExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class SplitExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class ConjunExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class AppendExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class ExtractExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class EqExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class NotEqExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class GreatExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class LessExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class GreatEqExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class LessEqExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 // Either indexing or predicate filtering
 class ArrayExpr : public BinaryExpr {
 public:
     using BinaryExpr::BinaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 
@@ -164,27 +195,32 @@ private:
 class PositiveExpr : public UnaryExpr {
 public:
     using UnaryExpr::UnaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class NegativeExpr : public UnaryExpr {
 public:
     using UnaryExpr::UnaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class NotExpr : public UnaryExpr {
 public:
     using UnaryExpr::UnaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 class CardinalityExpr : public UnaryExpr {
 public:
     using UnaryExpr::UnaryExpr;
+    void accept(Visitor &v) override; 
 };
 
 // LITERALS
 class IntLit : public Expression {
 public:
     IntLit(int value, Position position) : m_value(value), m_position(position) {}
+    void accept(Visitor &v) override; 
 private:
     int m_value;
     Position m_position;
@@ -193,6 +229,7 @@ private:
 class StrLit : public Expression {
 public:
     StrLit(std::string value, Position position) : m_value(value), m_position(position) {}
+    void accept(Visitor &v) override; 
 private:
     std::string m_value;
     Position m_position;
@@ -201,6 +238,7 @@ private:
 class FlpLit : public Expression {
 public:
     FlpLit(double value, Position position) : m_value(value), m_position(position) {}
+    void accept(Visitor &v) override; 
 private:
     double m_value;
     Position m_position;
@@ -209,6 +247,7 @@ private:
 class BoolLit : public Expression {
 public:
     BoolLit(bool value, Position position) : m_value(value), m_position(position) {}
+    void accept(Visitor &v) override; 
 private:
     bool m_value;
     Position m_position;
@@ -218,6 +257,7 @@ class ArrayLit : public Expression {
 public:
     ArrayLit(std::vector<std::unique_ptr<Expression>> values, Position position)
         : m_values(std::move(values)), m_position(position) {}
+    void accept(Visitor &v) override; 
 private:
     std::vector<std::unique_ptr<Expression>> m_values;
     Position m_position;
@@ -228,6 +268,7 @@ class FunCall : public Expression {
 public:
     FunCall(std::string name, std::vector<std::unique_ptr<Expression>> arguments, Position position)
         : m_name(name), m_arguments(std::move(arguments)), m_position(position) {}
+    void accept(Visitor &v) override; 
 private:
     std::string m_name;
     std::vector<std::unique_ptr<Expression>> m_arguments;
@@ -237,6 +278,7 @@ private:
 class Identifier : public Expression {
 public:
     Identifier(std::string name, Position position) : m_name(name), m_position(position) {}
+    void accept(Visitor &v) override; 
 private:
     std::string m_name;
     Position m_position;
@@ -255,6 +297,7 @@ class Program : public Node {
 public:
     Program(std::vector<std::unique_ptr<Statement>> statements) 
         : m_statements(std::move(statements)) {}
+    void accept(Visitor &v) override; 
 private:
     std::vector<std::unique_ptr<Statement>> m_statements{};
 };
@@ -263,6 +306,7 @@ class FunCallStmt : public Statement {
 public:
     FunCallStmt(std::unique_ptr<Expression> funCall, Position pos)
         : m_funCall(std::move(funCall)), Statement(pos) {}
+    void accept(Visitor &v) override; 
 private:
     std::unique_ptr<Expression> m_funCall;
 };
@@ -273,6 +317,7 @@ public:
             std::unique_ptr<Statement> elseStmt, Position position)
         : m_condition(std::move(condition)), m_scope(std::move(scope))
         , m_else(std::move(elseStmt)), Statement(position) {}
+    void accept(Visitor &v) override; 
 private:
     std::unique_ptr<Expression> m_condition;
     std::unique_ptr<Statement> m_scope;
@@ -284,6 +329,7 @@ class WhileStmt : public Statement {
 public:
     WhileStmt(std::unique_ptr<Expression> condition, std::unique_ptr<Statement> body, Position position)
         : m_condition(std::move(condition)), m_body(std::move(body)), Statement(position) {}
+    void accept(Visitor &v) override; 
 private:
     std::unique_ptr<Expression> m_condition;
     std::unique_ptr<Statement> m_body;
@@ -294,6 +340,7 @@ class Scope : public Statement {
 public:
     Scope(std::vector<std::unique_ptr<Statement>> statements, Position pos)
         : Statement(pos), m_statements(std::move(statements)) {}
+    void accept(Visitor &v) override; 
 private:
     std::vector<std::unique_ptr<Statement>> m_statements;
 };
@@ -302,6 +349,7 @@ class RetStmt : public Statement {
 public:
     RetStmt(std::unique_ptr<Expression> expr, Position pos)
         : m_expression(std::move(expr)), Statement(pos) {}
+    void accept(Visitor &v) override; 
 private:
     std::unique_ptr<Expression> m_expression;
     Position m_position;
@@ -318,6 +366,7 @@ public:
         , m_type(std::move(type))
         , m_name(std::move(name))
         , m_initializer(std::move(initializer)) {}
+    void accept(Visitor &v) override; 
 
 private:
     TypeInfo m_type;
@@ -337,6 +386,7 @@ public:
         , m_name(std::move(name))
         , m_params(std::move(params))
         , m_body(std::move(body)) {}
+    void accept(Visitor &v) override; 
 private:
     TypeInfo m_returnType;
     std::string m_name;
@@ -357,35 +407,43 @@ private:
 class BasicAssignStmt : public AssignStmt {
 public:
     using AssignStmt::AssignStmt;
+    void accept(Visitor &v) override; 
 };
 
 class AddAssignStmt : public AssignStmt {
 public:
     using AssignStmt::AssignStmt;
+    void accept(Visitor &v) override; 
 };
 
 class SubAssignStmt : public AssignStmt { 
 public:
     using AssignStmt::AssignStmt;
+    void accept(Visitor &v) override; 
 };
 
 class MultAssignStmt : public AssignStmt { 
 public:
     using AssignStmt::AssignStmt;
+    void accept(Visitor &v) override; 
 };
 
 class DivAssignStmt : public AssignStmt { 
 public:
     using AssignStmt::AssignStmt;
+    void accept(Visitor &v) override; 
 };
 
 class ModAssignStmt : public AssignStmt { 
 public:
     using AssignStmt::AssignStmt;
+    void accept(Visitor &v) override; 
 };
 
 class ConcatAssignStmt : public AssignStmt { 
 public:
     using AssignStmt::AssignStmt;
+    void accept(Visitor &v) override; 
 };
 
+#endif
