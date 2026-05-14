@@ -110,10 +110,6 @@ private:
         table[to_idx(TokenType::MINUS_T)] = makeUnaryOpFactory<NegativeExpr>();
         table[to_idx(TokenType::NOT_T)] = makeUnaryOpFactory<NotExpr>();
         table[to_idx(TokenType::CARDINALITY_T)] = makeUnaryOpFactory<CardinalityExpr>();
-        table[to_idx(TokenType::STR_T)] = makeUnaryOpFactory<StrCast>();
-        table[to_idx(TokenType::INT_T)] = makeUnaryOpFactory<IntCast>();
-        table[to_idx(TokenType::BOOL_T)] = makeUnaryOpFactory<BoolCast>();
-        table[to_idx(TokenType::FLP_T)] = makeUnaryOpFactory<FlpCast>();
 
         return table;
     }
@@ -136,10 +132,10 @@ private:
     static inline const auto unaryOpTypeToObject = createUnaryOpTable();
     static inline const auto assTypeToObject = createAssignTable();
     
-    static std::unordered_map<std::string_view, Position> functionMap;
-
-
-    void error(std::string_view message, Position tokenPos) {}
+    void error(std::string_view message, Position tokenPos) {
+        std::cout << message << " at column " << tokenPos.column << ", line "
+            << tokenPos.line << " (char offset: " << tokenPos.offset << ").\n";
+    }
 
     Token peek() const { return currToken; }
     Token previous() const { return prevToken; }

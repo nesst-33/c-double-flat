@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <utility>
 #include <vector>
 #include <memory>
@@ -24,6 +25,18 @@ struct Parameter {
 class Expression : public Node {
 public:
     virtual ~Expression() = default;
+};
+
+class AsExpr : public Expression {
+public:
+    AsExpr(std::unique_ptr<Expression> castedExpr,
+            BaseType type,
+            Position asPos)
+    : m_castedExpr(std::move(castedExpr)), m_type(type), m_asPos(asPos) {}
+private:
+    std::unique_ptr<Expression> m_castedExpr;
+    BaseType m_type;
+    Position m_asPos;
 };
 
 // BINARY EXPRESSIONS
@@ -166,32 +179,6 @@ public:
 class CardinalityExpr : public UnaryExpr {
 public:
     using UnaryExpr::UnaryExpr;
-};
-
-// Type cast is a unary operator at its core (it completely changes behaviour depending on type)
-class AsExpr : public UnaryExpr {
-public:
-    using UnaryExpr::UnaryExpr;
-};
-
-class StrCast : public AsExpr {
-public:
-    using AsExpr::AsExpr;
-};
-
-class IntCast : public AsExpr {
-public:
-    using AsExpr::AsExpr;
-};
-
-class BoolCast : public AsExpr {
-public:
-    using AsExpr::AsExpr;
-};
-
-class FlpCast : public AsExpr {
-public:
-    using AsExpr::AsExpr;
 };
 
 // LITERALS

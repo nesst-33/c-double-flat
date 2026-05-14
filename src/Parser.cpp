@@ -6,6 +6,9 @@
 
 void Parser::synchronize() {
     while (!isAtEnd()) {
+        if (previous().type == TokenType::NEWLINE_T)
+            return;
+
         switch(peek().type) {
             case TokenType::IF_T:
             case TokenType::WHILE_T:
@@ -19,98 +22,91 @@ void Parser::synchronize() {
             case TokenType::IDENTIFIER_T:
             case TokenType::RETURN_T:
                 return;
-            default:
-                continue;
+            default: break;
         }
+
         advance();
     }
 }
 
-// program = { statement }, EOT ;
+// program = { [statement], newline }, EOT ;
 std::unique_ptr<Program> Parser::parse() {
     std::vector<std::unique_ptr<Statement>> statements{};
-    while (auto statement = parseStatement())
-        statements.push_back(std::move(statement));
-    if (!isAtEnd())
-        throw SyntaxError("Expected end of file", peek().position);
+
+    while (!isAtEnd()) {
+
+        try {
+            if (auto statement = parseStatement())
+                statements.push_back(std::move(statement));
+        } catch (SyntaxError e) {
+            error(std::format("Invalid statement: {}", e.what()), e.getPosition());
+            synchronize();
+        }
+
+        if (!match(TokenType::NEWLINE_T))
+            error("Missing terminating newline", peek().position);
+    }
 
     return std::make_unique<Program>(std::move(statements));
 }
 
-// TODO : move newline check to parent method
-// statement = if_stmt | while_stmt | scope, newline | var_or_func_decl
-//           | void_func_decl | id_arr_func_call, newline | newline, {newline}
+// statement = if_stmt | while_stmt | scope | var_or_func_decl
+//           | void_func_decl | id_arr_func_call 
 std::unique_ptr<Statement> Parser::parseStatement() {
-    
-    // Ignore lines that are pure newline
-    while (match(TokenType::NEWLINE_T));
-
-    // TODO: move SyntaxError do parse()
-    try {
-        if (auto st = parseIfStmt())        
-            return st;
-        if (auto st = parseWhileStmt())        
-            return st;
-        if (auto st = parseScope()) {        
-            if (!match(TokenType::NEWLINE_T)) 
-                error("Missing terminating newline", peek().position);
-            return st;
-        }
-        if (auto st = parseVarOrFuncDecl()) {
-            if (!match(TokenType::NEWLINE_T)) 
-                error("Missing terminating newline", peek().position);
-            return st;
-        }
-        if (auto st = parseVoidFuncDecl())        
-            return st;
-        if (auto st = parseIdArrFunCall()) {
-            if (!match(TokenType::NEWLINE_T)) 
-                error("Missing terminating newline", peek().position);
-            return st;
-        }
-    } catch (SyntaxError e) {
-        error(std::format("Invalid statement: {}", e.what()), e.getPosition());
-        synchronize();
-    }
+    if (auto st = parseIfStmt())        
+        return st;
+    if (auto st = parseWhileStmt())        
+        return st;
+    if (auto st = parseScope())         
+        return st;
+    if (auto st = parseVarOrFuncDecl()) 
+        return st;
+    if (auto st = parseVoidFuncDecl())        
+        return st;
+    if (auto st = parseIdArrFunCall()) 
+        return st;
 
     return nullptr;
 }
 
-// scope =  "{", [newline], {scoped_stmt}, "}"
+// scope =  "{", { [scoped_stmt], newline }, "}"
 std::unique_ptr<Statement> Parser::parseScope() {
     if (!match(TokenType::L_BRACE_T))
         return nullptr;
+
     Position scopePos = previous().position;
 
     std::vector<std::unique_ptr<Statement>> statements {};
+
     while (!match(TokenType::R_BRACE_T)) {
-        if (auto statement = parseScopedStmt())
-            statements.push_back(std::move(statement));
+        try { 
+            if (auto statement = parseScopedStmt())
+                statements.push_back(std::move(statement));
+        } catch (SyntaxError e) {
+            error(std::format("Invalid statement: {}", e.what()), e.getPosition());
+            synchronize();
+        }
+
+        if (!match(TokenType::NEWLINE_T))
+            error("Missing terminating newline", peek().position);
     }
+
     return std::make_unique<Scope>(std::move(statements), scopePos);
 }
 
 // scoped_stmt = var_decl | scope_stmt | if_stmt | while_stmt | return_stmt
-//             | id_arr_func_call, newline | newline
+//             | id_arr_func_call
 std::unique_ptr<Statement> Parser::parseScopedStmt() {
-    while(match(TokenType::NEWLINE_T));
 
     try {
         if (auto st = parseIfStmt())
             return st;
         if (auto st = parseWhileStmt())
             return st;
-        if (auto st = parseScope()) {
-            // TODO: change to method
-            if (!match(TokenType::NEWLINE_T))
-                error("Missing terminating newline", peek().position);
+        if (auto st = parseScope()) 
             return st;
-        }
-        if (auto st = parseIdArrFunCall()) {
-            if (!match(TokenType::NEWLINE_T))
-                error("Missing terminating newline", peek().position);
+        if (auto st = parseIdArrFunCall()) 
             return st;
-        }
         if (auto st = parseVarDecl())
             return st;
         if (auto st = parseRetStmt())
@@ -123,7 +119,7 @@ std::unique_ptr<Statement> Parser::parseScopedStmt() {
     return nullptr;
 }
 
-// var_decl = type, identifier, ["=", expression], newline;
+// var_decl = type, identifier, ["=", expression]
 std::unique_ptr<Statement> Parser::parseVarDecl() {
     Position startPos = peek().position;
     auto typeOpt = parseType();
@@ -135,13 +131,10 @@ std::unique_ptr<Statement> Parser::parseVarDecl() {
 
     std::string name = std::get<std::string>(previous().value);
 
-    if (!match(TokenType::NEWLINE_T))
-        error("Missing terminating newline", peek().position);
-    
     return parseVarDeclAssign(type, name, startPos);
 }
 
-// if_stmt = "if", condition, [newline], scope, [ [newline], else_stmt ], newline;
+// if_stmt = "if", condition, [newline], scope, [else_body];
 std::unique_ptr<Statement> Parser::parseIfStmt() {
     if (!match(TokenType::IF_T))
         return nullptr;
@@ -156,7 +149,7 @@ std::unique_ptr<Statement> Parser::parseIfStmt() {
     if (!scope) 
         throw SyntaxError("Ill-formed scope", peek().position);
 
-    auto elseStmt = parseIfTail();
+    auto elseStmt = parseElseBody();
 
     return std::make_unique<IfStmt>(std::move(condition), std::move(scope), std::move(elseStmt), ifPos);
 }
@@ -176,30 +169,6 @@ std::unique_ptr<Expression> Parser::parseCondition() {
     return condition;
 }
 
-// if_tail = else_stmt | (newline, [else_stmt]) 
-std::unique_ptr<Statement> Parser::parseIfTail() {
-    auto elseStmt = parseElseStmt();
-    if (!elseStmt) {
-        if (!match(TokenType::NEWLINE_T))
-            error("Expected 'else' or newline after if-statement scope", peek().position);
-        elseStmt = parseElseStmt();
-    }
-
-    return elseStmt;
-}
-
-// else_stmt = else_body, newline
-std::unique_ptr<Statement> Parser::parseElseStmt() {
-    auto elseBody = parseElseBody();
-    if (!elseBody)
-        return nullptr;
-
-    if (!match(TokenType::NEWLINE_T))
-        error("Missing terminating newline", peek().position);
-
-    return elseBody;
-}
-
 // else_body = "else", [newline], scope
 std::unique_ptr<Statement> Parser::parseElseBody() {
     if (!match(TokenType::ELSE_T))
@@ -207,17 +176,14 @@ std::unique_ptr<Statement> Parser::parseElseBody() {
 
     match(TokenType::NEWLINE_T);
 
-    auto elseBody = parseScope();
-    if (!elseBody)
+    auto scope = parseScope();
+    if (!scope)
         throw SyntaxError("Invalid else body", peek().position);
 
-    if (!match(TokenType::NEWLINE_T))
-        error("Missing terminating newline", peek().position);
-
-    return elseBody;
+    return scope;
 }
 
-// while_stmt = "while", condition, [newline], scope, newline;
+// while_stmt = "while", condition, [newline], scope
 std::unique_ptr<Statement> Parser::parseWhileStmt() {
     if (!match(TokenType::WHILE_T))
         return nullptr;
@@ -231,9 +197,6 @@ std::unique_ptr<Statement> Parser::parseWhileStmt() {
     auto whileBody = parseScope();
     if (!whileBody)
         throw SyntaxError("Missing while body", peek().position);
-
-    if (!match(TokenType::NEWLINE_T))
-        error("Missing terminating newline", peek().position);
 
     return std::make_unique<WhileStmt>(std::move(condition), std::move(whileBody), whilePos);
 }
@@ -254,10 +217,11 @@ std::unique_ptr<Statement> Parser::parseVarOrFuncDecl() {
 
     if (auto func = parseFuncDecl(type, name, startPos))
         return func;
+
     return parseVarDeclAssign(type, name, startPos);
 }
 
-// void_func_decl = "void", identifier, func_declaration, newline
+// void_func_decl = "void", identifier, func_declaration
 std::unique_ptr<Statement> Parser::parseVoidFuncDecl() {
     if (!match(TokenType::VOID_T))
         return nullptr;
@@ -271,9 +235,6 @@ std::unique_ptr<Statement> Parser::parseVoidFuncDecl() {
     auto func = parseFuncDecl(type, name, startPos);
     if (!func)
         throw SyntaxError("Missing function declaration", peek().position);
-
-    if (!match(TokenType::NEWLINE_T))
-        error("Missing terminating newline", peek().position);
 
     return func;
 }
@@ -293,12 +254,6 @@ std::unique_ptr<Statement> Parser::parseFuncDecl(TypeInfo type, std::string name
     auto body = parseScope();
     if (!body)
         throw SyntaxError("Missing function body", peek().position);
-
-    // TODO: usunąć mapę
-    if (auto search = functionMap.find(name); search == functionMap.end())
-        functionMap.insert({name, pos});
-    else
-        throw SyntaxError("Function redefinition", pos);
 
     return std::make_unique<FuncDeclStmt>(type, name, std::move(params), std::move(body), pos);
 }
@@ -372,16 +327,13 @@ std::optional<TypeInfo> Parser::parseType() {
     return type;
 }
 
-// return_stmt = "return", [expression], newline
+// return_stmt = "return", [expression]
 std::unique_ptr<Statement> Parser::parseRetStmt() {
     if (!match(TokenType::RETURN_T))
         return nullptr;
 
     Position retPos = previous().position;
     auto expression = parseExpression();
-
-    if (!match(TokenType::NEWLINE_T))
-        error("Missing terminating newline", peek().position);
 
     return std::make_unique<RetStmt>(std::move(expression), retPos);
 }
@@ -602,13 +554,18 @@ std::unique_ptr<Expression> Parser::parseTypeCast() {
     while (match(TokenType::AS_T)) {
         Position asPosition = previous().position;
 
-        // TODO: zamiast 4 klas 1
-        if (match({TokenType::STR_T, TokenType::INT_T, TokenType::BOOL_T, TokenType::FLP_T})) {
-            TokenType type = previous().type;
-            factor = unaryOpTypeToObject[to_idx(type)](std::move(factor), asPosition);
-        }
-        else 
-            throw SyntaxError("Invalid type in type cast", peek().position);
+        BaseType type{};
+        if (match(TokenType::STR_T))
+            type = BaseType::STR;
+        else if (match(TokenType::INT_T))
+            type = BaseType::INT;
+        else if (match(TokenType::BOOL_T))
+            type = BaseType::BOOL;
+        else if (match(TokenType::FLP_T))
+            type = BaseType::FLP;
+        else throw SyntaxError("Invalid type in type cast", peek().position);
+
+        factor = std::make_unique<AsExpr>(std::move(factor), type, asPosition);
     }
 
     return factor;
