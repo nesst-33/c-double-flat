@@ -26,6 +26,21 @@ public:
     virtual ~ILexer() = default;
 };
 
+class MockLexer : public ILexer {
+public:
+    MockLexer(std::deque<Token> tokenList) : tokenQueue(std::move(tokenList)) {}
+    Token getToken() override {
+        Token token = tokenQueue.front();
+        tokenQueue.pop();
+        return token;
+    }
+    Position getPosition() const override {
+        return tokenQueue.front().position;
+    }
+private:
+    std::queue<Token> tokenQueue;
+};
+
 class Lexer : public ILexer
 {
 public:

@@ -1,20 +1,26 @@
 #include "ASTPrinter.h"
 #include "Node.h"
 #include <string>
+#include <iostream>
 
 
 void ASTPrinter::printType(BaseType type) {
     switch (type) {
         case BaseType::INT:
             result += "int";
+            return;
         case BaseType::FLP:
             result += "flp";
+            return;
         case BaseType::STR:
             result += "str";
+            return;
         case BaseType::BOOL:
             result += "bool";
+            return;
         case BaseType::VOID:
             result += "void";
+            return;
     }
 }
 
@@ -303,13 +309,13 @@ void ASTPrinter::visit(const VarDeclStmt& node) {
     result += node.getName();
     const auto& initializer = node.getInitializer();
     if (initializer) {
-        result += " ";
+        result += " = ";
         initializer->accept(*this);
     }
 }
 
 void ASTPrinter::visit(const Scope& node) {
-    result += "{";
+    result += "{\n";
     indentLevel++;
     for (const auto& stmt : node.getStatements()) {
         printIndent();
@@ -317,6 +323,7 @@ void ASTPrinter::visit(const Scope& node) {
         result += "\n";
     }
     indentLevel--;
+    printIndent();
     result += "}";
 }
 

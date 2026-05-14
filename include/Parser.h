@@ -23,7 +23,7 @@ class SyntaxError : public std::runtime_error
 {
 public:
     SyntaxError(const std::string& msg, Position pos)
-        : std::runtime_error("Syntax Error: " + msg), m_pos(pos) {}
+        : std::runtime_error(msg), m_pos(pos) {}
     const Position& getPosition() const { return m_pos; }
 private:
     Position m_pos;
@@ -71,7 +71,7 @@ public:
     using UnaryOpFactory = ExprPtr(*)(ExprPtr, Position);
     using AssignFactory = std::unique_ptr<Statement>(*)(ExprPtr, Position, ExprPtr);
 
-    std::unique_ptr<Program> parse();
+    Program parse();
 
 private:
     ILexer& m_lexer;
@@ -134,8 +134,8 @@ private:
     static inline const auto assTypeToObject = createAssignTable();
     
     void error(std::string_view message, Position tokenPos) {
-        std::cout << message << " at column " << tokenPos.column << ", line "
-            << tokenPos.line << " (char offset: " << tokenPos.offset << ").\n";
+        std::cout << message << " at line " << tokenPos.line << ", column "
+            << tokenPos.column << " (char offset: " << tokenPos.offset << ").\n";
     }
 
     Token peek() const { return currToken; }
@@ -228,11 +228,6 @@ private:
         if (!match(type))
             error(message, peek().position);
     }
-
-
-
-
-    
 };
 
 #endif

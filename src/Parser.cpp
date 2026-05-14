@@ -1,49 +1,54 @@
 #include "Parser.h"
 #include "Token.h"
+#include <iostream>
 #include <memory>
 #include <vector>
 
 void Parser::synchronize() {
     while (!isAtEnd()) {
+        advance();
         if (previous().type == TokenType::NEWLINE_T)
             return;
 
-        switch(peek().type) {
-            case TokenType::IF_T:
-            case TokenType::WHILE_T:
-            case TokenType::L_BRACE_T:
-            case TokenType::INT_T:
-            case TokenType::FLP_T:
-            case TokenType::STR_T:
-            case TokenType::BOOL_T:
-            case TokenType::VOID_T:
-            case TokenType::ARR_T:
-            case TokenType::IDENTIFIER_T:
-            case TokenType::RETURN_T:
-                return;
-            default: break;
-        }
+        // switch(peek().type) {
+        //     case TokenType::IF_T:
+        //     case TokenType::WHILE_T:
+        //     case TokenType::L_BRACE_T:
+        //     case TokenType::INT_T:
+        //     case TokenType::FLP_T:
+        //     case TokenType::STR_T:
+        //     case TokenType::BOOL_T:
+        //     case TokenType::VOID_T:
+        //     case TokenType::ARR_T:
+        //     case TokenType::IDENTIFIER_T:
+        //     case TokenType::RETURN_T:
+        //         return;
+        //     default: break;
+        // }
 
-        advance();
+        //advance();
     }
 }
 
 // program = { [statement], newline }, EOT ;
-std::unique_ptr<Program> Parser::parse() {
+Program Parser::parse() {
     std::vector<std::unique_ptr<Statement>> statements{};
 
     while (!isAtEnd()) {
         try {
-            if (auto statement = parseStatement())
+            if (auto statement = parseStatement()) {
                 statements.push_back(std::move(statement));
+                consume(TokenType::NEWLINE_T, "Missing terminating newline");
+            }
+            else throwIfMissing(match(TokenType::NEWLINE_T), "");
+
         } catch (SyntaxError e) {
             error(std::format("Invalid statement: {}", e.what()), e.getPosition());
             synchronize();
         }
-        consume(TokenType::NEWLINE_T, "Missing terminating newline");
     }
 
-    return std::make_unique<Program>(std::move(statements));
+    return Program(std::move(statements));
 }
 
 // statement = if_stmt | while_stmt | scope | var_or_func_decl
@@ -78,11 +83,11 @@ std::unique_ptr<Statement> Parser::parseScope() {
         try { 
             if (auto statement = parseScopedStmt())
                 statements.push_back(std::move(statement));
+            else throwIfMissing(match(TokenType::NEWLINE_T), "");
         } catch (SyntaxError e) {
             error(std::format("Invalid statement: {}", e.what()), e.getPosition());
             synchronize();
         }
-        consume(TokenType::NEWLINE_T, "Missing terminating newline");
     }
 
     return std::make_unique<Scope>(std::move(statements), scopePos);
@@ -290,8 +295,9 @@ std::optional<TypeInfo> Parser::parseType() {
     else if (match(TokenType::BOOL_T))
         type.type = BaseType::BOOL;
     else {
-        if (type.isConst || type.arrayDepth > 0)
+        if (type.isConst || type.arrayDepth > 0) {
             throw SyntaxError("Missing type in declaration", peek().position);
+        }
         return std::nullopt;
     }
 
