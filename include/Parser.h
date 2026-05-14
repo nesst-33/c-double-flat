@@ -2,7 +2,6 @@
 #define _PARSER_H
 
 #include <array>
-#include <initializer_list>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -77,6 +76,7 @@ public:
 private:
     ILexer& m_lexer;
     Token prevToken{}, currToken{};
+
 
     // Binary operator type to class pointer table creation
     static constexpr std::array<BinOpFactory, to_idx(TokenType::UNKNOWN)> createBinOpTable() {
@@ -209,7 +209,6 @@ private:
         return peek().type == type;
     }
 
-
     template<typename... Args>
     bool match(Args... types) {
         if (((check(types)) || ...)) {
@@ -231,25 +230,6 @@ private:
     }
 
 
-     // bool match(TokenType type) {
-     //     if (check(type)) {
-     //         advance();
-     //         return true;
-     //     }
-     //     return false;
-     // }
-
-     // bool match(std::initializer_list<TokenType> types) {
-     //     // TODO: zamienić na ...
-     //     // If the token is in the types list, consume it
-     //     for (TokenType type : types) {
-     //         if (check(type)) {
-     //             advance();
-     //             return true;
-     //         }
-     //     }
-     //     return false;
-     // }
 
 
     

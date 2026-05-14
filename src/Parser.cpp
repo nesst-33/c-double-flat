@@ -1,6 +1,5 @@
 #include "Parser.h"
 #include "Token.h"
-#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -180,11 +179,8 @@ std::unique_ptr<Statement> Parser::parseWhileStmt() {
         return nullptr;
 
     Position whilePos = previous().position;
-
     auto condition = parseCondition();
-
     match(TokenType::NEWLINE_T);
-
     auto whileBody = parseScope();
     throwIfMissing(whileBody, "Missing while body");
 
@@ -199,9 +195,7 @@ std::unique_ptr<Statement> Parser::parseVarOrFuncDecl() {
         return nullptr;
 
     TypeInfo type = *typeOpt;
-
     throwIfMissing(match(TokenType::IDENTIFIER_T), "Expected identifier name after type");
-
     std::string name = std::get<std::string>(previous().value);
 
     if (auto func = parseFuncDecl(type, name, startPos))
@@ -232,11 +226,8 @@ std::unique_ptr<Statement> Parser::parseFuncDecl(TypeInfo type, std::string name
         return nullptr;
 
     std::vector<Parameter> params = parseParameters();
-
     consume(TokenType::R_BRACKET_T, "Missing closing bracket in parameter list");
-    
     match(TokenType::NEWLINE_T);
-
     auto body = parseScope();
     throwIfMissing(body, "Missing function body");
 
@@ -262,9 +253,7 @@ std::vector<Parameter> Parser::parseParameters() {
         return params;
 
     TypeInfo type = *typeOpt;
-
     throwIfMissing(match(TokenType::IDENTIFIER_T), "Expected identifier name after type");
-
     params.push_back({std::move(type), std::get<std::string>(previous().value), previous().position});
 
     while (match(TokenType::COMMA_T)) {
@@ -276,7 +265,6 @@ std::vector<Parameter> Parser::parseParameters() {
         }
 
         type = *typeOpt; 
-
         throwIfMissing(match(TokenType::IDENTIFIER_T), "Expected identifier name after type");
         Parameter param = {std::move(type), std::get<std::string>(previous().value), previous().position};
         params.push_back(param);
@@ -551,12 +539,9 @@ std::unique_ptr<Expression> Parser::parseArrayExpr() {
 
     while (match(TokenType::L_SQUARE_T)) {
         Position squarePos = previous().position;
-
         auto indexExpr = parseExpression();
         throwIfMissing(indexExpr, "Missing or invalid array index/predicate inside square brackets");
-
         arrObj = std::make_unique<ArrayExpr>(std::move(arrObj), squarePos, std::move(indexExpr));
-
         consume(TokenType::R_SQUARE_T, "Missing closing square bracket");
     }
 
@@ -595,7 +580,6 @@ std::unique_ptr<Expression> Parser::parseFunCall(std::string name, Position posi
         return nullptr;
     
     std::vector<std::unique_ptr<Expression>> arguments = parseArguments();
-
     consume(TokenType::R_BRACKET_T, "Missing closing bracket");
 
     return std::make_unique<FunCall>(name, std::move(arguments), position);
@@ -671,5 +655,6 @@ std::unique_ptr<Expression> Parser::parseNestedExpr() {
     
     auto expr = parseExpression();
     consume(TokenType::R_BRACKET_T, "Missing closing parenthesis");
+
     return expr;
 }
