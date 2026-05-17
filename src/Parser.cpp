@@ -1,6 +1,5 @@
 #include "Parser.h"
 #include "Token.h"
-#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -43,7 +42,7 @@ Program Parser::parse() {
             else throwIfMissing(match(TokenType::NEWLINE_T), "");
 
         } catch (SyntaxError e) {
-            error(std::format("Invalid statement: {}", e.what()), e.getPosition());
+            // error(std::format("Invalid statement: {}", e.what()), e.getPosition());
             synchronize();
         }
     }
@@ -85,7 +84,7 @@ std::unique_ptr<Statement> Parser::parseScope() {
                 statements.push_back(std::move(statement));
             else throwIfMissing(match(TokenType::NEWLINE_T), "");
         } catch (SyntaxError e) {
-            error(std::format("Invalid statement: {}", e.what()), e.getPosition());
+            // error(std::format("Invalid statement: {}", e.what()), e.getPosition());
             synchronize();
         }
     }

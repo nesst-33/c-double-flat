@@ -8,27 +8,21 @@
 #include <sys/syslimits.h>
 #include <utility>
 #include <vector>
-#include <unordered_map>
-#include <format>
 #include "Lexer.h"
 #include "Token.h"
 #include "Node.h"
+#include <ErrorHandler.h>
 
-class ErrorHandler {
-public:
-    void handleError() {}
-};
-
-class SyntaxError : public std::runtime_error
-{
-public:
-    SyntaxError(const std::string& msg, Position pos)
-        : std::runtime_error(msg), m_pos(pos) {}
-    const Position& getPosition() const { return m_pos; }
-private:
-    Position m_pos;
-};
-
+// class SyntaxError : public std::runtime_error
+// {
+// public:
+//     SyntaxError(const std::string& msg, Position pos)
+//         : std::runtime_error(msg), m_pos(pos) {}
+//     const Position& getPosition() const { return m_pos; }
+// private:
+//     Position m_pos;
+// };
+ 
 // Do zamiany enum na size_t
 template <typename T>
 constexpr auto to_idx(T e) {
@@ -58,7 +52,8 @@ constexpr auto makeAssignFactory() {
 
 class Parser {
 public:
-    Parser(ILexer& lexer) : m_lexer(lexer)
+    Parser(ILexer& lexer, ErrorHandler& errorHandler) 
+        : m_lexer(lexer), m_errorHandler(errorHandler)
     {
         currToken = m_lexer.getToken();
         while (currToken.type == TokenType::COMMENT_T)
@@ -75,6 +70,7 @@ public:
 
 private:
     ILexer& m_lexer;
+    ErrorHandler& m_errorHandler;
     Token prevToken{}, currToken{};
 
 
@@ -134,8 +130,9 @@ private:
     static inline const auto assTypeToObject = createAssignTable();
     
     void error(std::string_view message, Position tokenPos) {
-        std::cout << message << " at line " << tokenPos.line << ", column "
-            << tokenPos.column << " (char offset: " << tokenPos.offset << ").\n";
+        
+        // std::cout << message << " at line " << tokenPos.line << ", column "
+        //     << tokenPos.column << " (char offset: " << tokenPos.offset << ").\n";
     }
 
     Token peek() const { return currToken; }
@@ -220,13 +217,17 @@ private:
 
     template <typename T>
     void throwIfMissing(const T& arg, const std::string& message, std::optional<Position> pos = std::nullopt) {
-        if (!arg)
-            throw SyntaxError(message, pos.value_or(peek().position));
+        if (!arg) {
+            pos = pos.value_or(peek().position);
+            m_errorHandler.report(std::make_unique<SyntaxError>(message, Severity::ERROR, pos));
+        }
     }
 
     void consume(TokenType type, std::string_view message) {
         if (!match(type))
-            error(message, peek().position);
+            m_errorHandler.report(std::make_unique<SyntaxError>(message, Severity::WARNING, peek().position));
+        // if (!match(type))
+        //     error(message, peek().position);
     }
 };
 

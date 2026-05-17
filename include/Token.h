@@ -1,6 +1,7 @@
 #ifndef _TOKEN_H
 #define _TOKEN_H
 
+#include <sstream>
 #include <string>
 #include <variant>
 
@@ -13,6 +14,11 @@ struct Position
     int offset{}; // NOTE: this is a logical character offset; NOT A BYTE OFFSET!
 
     bool operator==(const Position&) const = default;
+    std::string print() const {
+        std::ostringstream printed;
+        printed << "line: " << line << ", column: " << column << " (char offset: " << offset << ")";
+        return printed.str();
+    }
 };
 
 enum class TokenType

@@ -1,3 +1,4 @@
+#include <iostream>
 #include <vector>
 #include <memory>
 #include "LangError.h"
@@ -5,6 +6,12 @@
 // TODO: implement the option to choose an error handling policy
 class ErrorHandler {
 public:
+    void printErrors() {
+        for (const auto& error : errors) 
+            std::cout << error->what() << "\n";
+    }
+
+
     void report(std::unique_ptr<LangError> error) {
         if (!error)
             throw std::runtime_error("Errors passes to the handler can't be nullptr");
