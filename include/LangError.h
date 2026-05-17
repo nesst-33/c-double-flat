@@ -23,8 +23,9 @@ public:
 
     const char* what() const noexcept override {
         std::ostringstream formatted;
-        formatted << getPrefix() << m_msg << " (" << m_pos.print() << ")";
-        return m_msg.c_str();
+        formatted << getPrefix() << m_msg << " at " << m_pos.print();
+        msg_buffer = formatted.str();
+        return msg_buffer.c_str();
     }
 
     virtual std::string getPrefix() const {
@@ -36,6 +37,7 @@ protected:
 private:
     Position m_pos;
     std::string m_msg;
+    mutable std::string msg_buffer;
 };
 
 class SyntaxError : public LangError {

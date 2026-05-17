@@ -6,10 +6,12 @@
 // TODO: implement the option to choose an error handling policy
 class ErrorHandler {
 public:
-    void printErrors() {
+    void printErrors() const {
         for (const auto& error : errors) 
             std::cout << error->what() << "\n";
     }
+
+    int getErrCount() const { return errors.size(); }
 
 
     void report(std::unique_ptr<LangError> error) {
