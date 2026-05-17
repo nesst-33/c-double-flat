@@ -68,12 +68,14 @@ int main()
     
 
     MockLexer lexer{tokenized};
-    Parser parser{lexer};
+    ErrorHandler errHandler;
+    Parser parser{lexer, errHandler};
     ASTPrinter printer;
 
     Program program = parser.parse();    
     printer.visit(program);
     std::cout << printer.getResult();
+    errHandler.printErrors();
 
 
     return 0;

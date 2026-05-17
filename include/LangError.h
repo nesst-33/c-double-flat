@@ -40,6 +40,7 @@ private:
 
 class SyntaxError : public LangError {
 public:
+    using LangError::LangError;
     void raise() const override { throw *this; }
 
     std::string getPrefix() const override {
@@ -49,6 +50,7 @@ public:
 
 class LexerError : public LangError {
 public:
+    using LangError::LangError;
     void raise() const override { throw *this; }
 
     std::string getPrefix() const override {
@@ -58,6 +60,7 @@ public:
 
 class InterpreterError : public LangError {
 public:
+    using LangError::LangError;
     void raise() const override { throw *this; }
 };
 

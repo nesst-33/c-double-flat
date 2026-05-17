@@ -218,12 +218,12 @@ private:
     template <typename T>
     void throwIfMissing(const T& arg, const std::string& message, std::optional<Position> pos = std::nullopt) {
         if (!arg) {
-            pos = pos.value_or(peek().position);
-            m_errorHandler.report(std::make_unique<SyntaxError>(message, Severity::ERROR, pos));
+            Position position = pos.value_or(peek().position);
+            m_errorHandler.report(std::make_unique<SyntaxError>(message, Severity::ERROR, position));
         }
     }
 
-    void consume(TokenType type, std::string_view message) {
+    void consume(TokenType type, const std::string& message) {
         if (!match(type))
             m_errorHandler.report(std::make_unique<SyntaxError>(message, Severity::WARNING, peek().position));
         // if (!match(type))

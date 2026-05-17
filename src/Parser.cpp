@@ -39,7 +39,7 @@ Program Parser::parse() {
                 statements.push_back(std::move(statement));
                 consume(TokenType::NEWLINE_T, "Missing terminating newline");
             }
-            else throwIfMissing(match(TokenType::NEWLINE_T), "");
+            else throwIfMissing(match(TokenType::NEWLINE_T), "Invalid statement");
 
         } catch (SyntaxError e) {
             // error(std::format("Invalid statement: {}", e.what()), e.getPosition());
@@ -295,7 +295,8 @@ std::optional<TypeInfo> Parser::parseType() {
         type.type = BaseType::BOOL;
     else {
         if (type.isConst || type.arrayDepth > 0) {
-            throw SyntaxError("Missing type in declaration", peek().position);
+            m_errorHandler.report(std::make_unique<SyntaxError>("Missing type in declaration", Severity::ERROR, peek().position));
+            // throw SyntaxError("Missing type in declaration", peek().position);
         }
         return std::nullopt;
     }
@@ -527,7 +528,13 @@ std::unique_ptr<Expression> Parser::parseTypeCast() {
             type = BaseType::BOOL;
         else if (match(TokenType::FLP_T))
             type = BaseType::FLP;
-        else throw SyntaxError("Invalid type in type cast", peek().position);
+        else {
+            m_errorHandler.report(std::make_unique<SyntaxError>(
+                        "Invalid type in type cast", 
+                        Severity::ERROR, 
+                        peek().position));
+        }
+        // throw SyntaxError("Invalid type in type cast", peek().position);
 
         factor = std::make_unique<AsExpr>(std::move(factor), type, asPosition);
     }
@@ -562,7 +569,9 @@ std::unique_ptr<Expression> Parser::parseSubject() {
     if (auto exp = parseNestedExpr())
         return exp;
       
-    throw SyntaxError("Invalid expression", peek().position);
+    m_errorHandler.report(std::make_unique<SyntaxError>("Invalid expression", Severity::ERROR, peek().position));
+    return nullptr;
+    // throw SyntaxError("Invalid expression", peek().position);
 } 
 
 // id_or_func_call = identifier, [func_call]
