@@ -40,28 +40,11 @@ int main()
     };
 
     std::string source = R"(
-    if (x > 4) {
-        const arr arr int a = [3, 2, 1]
-        const arr arr int b = a * 4
-    } else {
-        int c = 3*4+2
-        a = 4
-        {
-
-            what += 4[0] * 3
-        }
-        return i+2*3
-    }
-    a = 4
-
-    const int testfun(arr array, int cd234) 
+    bool a = c == d == e
+    const int testfun(arr int array, int cd234) 
     {
         return a[0][try(_, 5)]
     }
-    arr test = 5
-    int parenth_test = ((5 + 2) / 3)
-    flp y = .14
-    bl = true
         )";
 
     std::deque<Token> tokenized = lex(source);

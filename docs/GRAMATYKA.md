@@ -63,7 +63,7 @@ arr_ops     = additive, { ( "~" | "&" | ":" | "<<" | ">>" ),
 
 additive    = multipl, { ( "+" | "-" ), multipl };
 multipl     = unary, { ( "*" | "/" | "%" ), unary };
-unary       = [ "+" | "-" | "not" ], postfix;
+unary       = { "+" | "-" | "not" }, postfix;
 
 postfix     = type_cast, { "!" | ( "as", base_type ) }; 
 

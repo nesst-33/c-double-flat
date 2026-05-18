@@ -42,7 +42,6 @@ Program Parser::parse() {
             else throwIfMissing(match(TokenType::NEWLINE_T), "Invalid statement");
 
         } catch (SyntaxError e) {
-            // error(std::format("Invalid statement: {}", e.what()), e.getPosition());
             synchronize();
         }
     }
@@ -396,7 +395,7 @@ std::unique_ptr<Expression> Parser::parseAndExpr() {
     return leftFactor;
 }
 
-// equality = relational, [ ("==" | "!="), relational]
+// equality = relational, [ ("==" | "!="), relational ]
 std::unique_ptr<Expression> Parser::parseEqualityExpr() {
     auto leftFactor = parseRelationalExpr();
     if (!leftFactor)
@@ -481,21 +480,17 @@ std::unique_ptr<Expression> Parser::parseMultiplExpr() {
     return leftFactor;
 }
 
-// unary = ["+" | "-" | "not"], postfix
+// unary = {"+" | "-" | "not"}, postfix
 std::unique_ptr<Expression> Parser::parseUnaryExpr() {
     if (match(TokenType::PLUS_T, TokenType::MINUS_T, TokenType::NOT_T)) {
         TokenType unaryType = previous().type;
         Position unaryPosition = previous().position;
-        auto factor = parsePostfix();
-        throwIfMissing(factor, "Stray operator", unaryPosition);
+        auto factor = parseUnaryExpr();
+        throwIfMissing(factor, "Expected expression after unary operator", unaryPosition);
         return unaryOpTypeToObject[to_idx(unaryType)](std::move(factor), unaryPosition); 
     }
     
-    auto factor = parsePostfix();
-    if (!factor)
-        return nullptr;
-
-    return factor;
+    return parsePostfix();
 }
 
 // postfix = type_cast, {"!" | ("as", ("int" | "flp" | "bool" | "str"))}
