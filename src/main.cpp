@@ -40,11 +40,7 @@ int main()
     };
 
     std::string source = R"(
-    bool a = c == d == e
-    const int testfun(arr int array, int cd234) 
-    {
-        return a[0][try(_, 5)]
-    }
+    bool z = not
         )";
 
     std::deque<Token> tokenized = lex(source);

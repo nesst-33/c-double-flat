@@ -58,6 +58,10 @@ void checkErrorSeverity(const std::unique_ptr<LangError>& error, Severity severi
     EXPECT_EQ(error->getSeverity(), severity) << error->what();
 }
 
+void checkNumOfErrs(const ErrorHandler& errHandler, int expectedNum) {
+    EXPECT_EQ(errHandler.getErrCount(), expectedNum) << errHandler.formatErrors();
+}
+
 
 TEST(SingleStatementTests, OrderOfOperations) {
     std::string source = R"(
@@ -74,6 +78,9 @@ int g = x as int!
 int h = matrix[0][1] as flp
 bool i = x + 1 > y and z == 0
 bool j = true and false or false and false
+int k = +-not-+not b
+int l = 3 - +-2
+int test_parenth = (3 + 2) * 7
 bool final_boss = not matrix[0][1]! as flp * 5 + 10 << 2 > value and ready
 )"; 
 
@@ -90,6 +97,9 @@ int g = ((x as int)!)
 int h = (((matrix[0])[1]) as flp)
 bool i = (((x + 1) > y) and (z == 0))
 bool j = ((true and false) or (false and false))
+int k = (+(-(not (-(+(not b))))))
+int l = (3 - (+(-2)))
+int test_parenth = ((3 + 2) * 7)
 bool final_boss = ((((((not ((((matrix[0])[1])!) as flp)) * 5) + 10) << 2) > value) and ready)
 )";
 
@@ -109,7 +119,7 @@ TEST(NegativeTests, WarnsOfMissingNewline) {
     const auto& errors = errHandler.getErrors();
 
     checkIfOnlySyntaxErrs(errors);
-    EXPECT_EQ(errors.size(), 1);
+    checkNumOfErrs(errHandler, 1);
     checkErrorSeverity(errors[0], Severity::WARNING);
     EXPECT_EQ(output, expected);
 }
@@ -127,7 +137,7 @@ bool z = a == b == c
     const auto& errors = errHandler.getErrors();
 
     checkIfOnlySyntaxErrs(errors);
-    EXPECT_EQ(errHandler.getErrCount(), 2);
+    checkNumOfErrs(errHandler, 2);
     checkErrorSeverity(errors[0], Severity::WARNING);
     checkErrorSeverity(errors[1], Severity::ERROR);
     EXPECT_EQ(output, expected);
@@ -144,15 +154,63 @@ bool z = a < b > c
     const auto& errs2 = errHandler2.getErrors();
 
     checkIfOnlySyntaxErrs(errs2);
-    EXPECT_EQ(errHandler2.getErrCount(), 2);
+    checkNumOfErrs(errHandler2, 2);
     checkErrorSeverity(errs2[0], Severity::WARNING);
     checkErrorSeverity(errs2[1], Severity::ERROR);
     EXPECT_EQ(output, expected);
 }
 
+TEST(NegativeTests, WarnsOfMissingArrayClosingBracket) {
+    std::string source = R"(
+arr int y = [0, 1, 2
+arr flp z = y[0[1]
+z[0 = .14
+)";
+    std::string expected = R"(arr int y = [0, 1, 2]
+arr flp z = (y[(0[1])])
+(z[0]) = 0.140000
+)";
 
+    ErrorHandler errHandler;
+    EXPECT_EQ(printParsedProgram(source, errHandler), expected);
 
+    const auto& errs = errHandler.getErrors();
+    checkIfOnlySyntaxErrs(errs);
+    checkNumOfErrs(errHandler, 3);
+    for (const auto& err : errs)
+        checkErrorSeverity(err, Severity::WARNING);
+}
 
+TEST(NegativeTests, ThrowsOnMissingArrIndex) {
+    std::string source = R"(
+z[] = true
+arr bool y = z[]
+)";
+    std::string expected = R"()";
 
+    ErrorHandler errHandler;
+    EXPECT_EQ(printParsedProgram(source, errHandler), expected);
 
+    const auto& errs = errHandler.getErrors();
+    checkIfOnlySyntaxErrs(errs);
+    checkNumOfErrs(errHandler, 2);
+    for (const auto& err : errs)
+        checkErrorSeverity(err, Severity::ERROR);
+}
 
+TEST(NegativeTests, ThrowsOnStrayUnaryOperator) {
+    std::string source = R"(
+int y = x++
+bool z = not
+    )";
+    std::string expected = R"()";
+
+    ErrorHandler errHandler;
+    EXPECT_EQ(printParsedProgram(source, errHandler), expected);
+
+    const auto& errs = errHandler.getErrors();
+    checkIfOnlySyntaxErrs(errs);
+    checkNumOfErrs(errHandler, 2);
+    for (const auto& err : errs)
+        checkErrorSeverity(err, Severity::ERROR);
+}

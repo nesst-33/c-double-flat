@@ -351,9 +351,13 @@ std::unique_ptr<Expression> Parser::parseArrayIdx(std::string name, Position pos
 
     while (match(TokenType::L_SQUARE_T)) {
         Position squarePos = previous().position;
+
+        if (match(TokenType::R_SQUARE_T))
+            m_errorHandler.report(std::make_unique<SyntaxError>("Missing expression inside square brackets", Severity::ERROR, squarePos));
+
         auto indexExpr = parseExpression();
 
-        throwIfMissing(indexExpr, "Missing array index inside square brackets", previous().position);
+        // throwIfMissing(indexExpr, "Missing array index inside square brackets", previous().position);
         consume(TokenType::R_SQUARE_T, "Missing closing square bracket");
         arrayExpr = std::make_unique<ArrayExpr>(std::move(arrayExpr), squarePos, std::move(indexExpr));
     }
@@ -568,8 +572,12 @@ std::unique_ptr<Expression> Parser::parseArrayExpr() {
 
     while (match(TokenType::L_SQUARE_T)) {
         Position squarePos = previous().position;
+
+        if (match(TokenType::R_SQUARE_T))
+            m_errorHandler.report(std::make_unique<SyntaxError>("Missing expression inside square brackets", Severity::ERROR, squarePos));
+
         auto indexExpr = parseExpression();
-        throwIfMissing(indexExpr, "Missing or invalid array index/predicate inside square brackets");
+        // throwIfMissing(indexExpr, "Missing or invalid array index/predicate inside square brackets");
         arrObj = std::make_unique<ArrayExpr>(std::move(arrObj), squarePos, std::move(indexExpr));
         consume(TokenType::R_SQUARE_T, "Missing closing square bracket");
     }
@@ -586,7 +594,7 @@ std::unique_ptr<Expression> Parser::parseSubject() {
     if (auto exp = parseNestedExpr())
         return exp;
       
-    m_errorHandler.report(std::make_unique<SyntaxError>("Invalid expression", Severity::ERROR, peek().position));
+    // m_errorHandler.report(std::make_unique<SyntaxError>("Invalid expression", Severity::ERROR, peek().position));
     return nullptr;
     // throw SyntaxError("Invalid expression", peek().position);
 } 
