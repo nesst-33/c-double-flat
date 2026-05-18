@@ -13,6 +13,7 @@ public:
 
     int getErrCount() const { return errors.size(); }
 
+    const auto& getErrors() const { return errors; }
 
     void report(std::unique_ptr<LangError> error) {
         if (!error)

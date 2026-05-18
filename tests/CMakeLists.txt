@@ -19,6 +19,7 @@ add_executable(
 target_link_libraries(
     parser_tests
     GTest::gtest_main
+    LexerLib
     ParserLib
 )
 

@@ -473,7 +473,7 @@ std::unique_ptr<Expression> Parser::parseMultiplExpr() {
     while (match(TokenType::MULT_T, TokenType::DIV_T, TokenType::MOD_T)) {
         TokenType multType = previous().type;
         Position multPosition = previous().position;
-        auto rightFactor = parseMultiplExpr();
+        auto rightFactor = parseUnaryExpr();
         throwIfMissing(rightFactor, "Missing experssion after multiplicative operator");
         leftFactor = binaryOpTypeToObject[to_idx(multType)](std::move(leftFactor), multPosition, std::move(rightFactor));
     }
@@ -498,14 +498,36 @@ std::unique_ptr<Expression> Parser::parseUnaryExpr() {
     return factor;
 }
 
-// postfix = type_cast, ["!"]
+// postfix = type_cast, {"!" | ("as", ("int" | "flp" | "bool" | "str"))}
 std::unique_ptr<Expression> Parser::parsePostfix() {
-    auto factor = parseTypeCast();
+    auto factor = parseArrayExpr();
     if (!factor)
         return nullptr;
 
-    if (match(TokenType::CARDINALITY_T))
-        factor = unaryOpTypeToObject[to_idx(TokenType::CARDINALITY_T)](std::move(factor), previous().position);
+    while (match(TokenType::CARDINALITY_T, TokenType::AS_T)) {
+        if (previous().type == TokenType::CARDINALITY_T)
+            factor = unaryOpTypeToObject[to_idx(TokenType::CARDINALITY_T)](std::move(factor), previous().position);
+        else {
+            Position asPosition = previous().position;
+
+            BaseType type{};
+            if (match(TokenType::STR_T))
+                type = BaseType::STR;
+            else if (match(TokenType::INT_T))
+                type = BaseType::INT;
+            else if (match(TokenType::BOOL_T))
+                type = BaseType::BOOL;
+            else if (match(TokenType::FLP_T))
+                type = BaseType::FLP;
+            else {
+                m_errorHandler.report(std::make_unique<SyntaxError>(
+                            "Invalid type in type cast", 
+                            Severity::ERROR, 
+                            peek().position));
+            }
+            factor = std::make_unique<AsExpr>(std::move(factor), type, asPosition);
+        }
+    }
 
     return factor;
 }

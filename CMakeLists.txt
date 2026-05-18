@@ -13,6 +13,7 @@ add_library(ParserLib src/Parser.cpp src/Node.cpp src/ASTPrinter.cpp)
 add_executable(compiler src/main.cpp)
 target_link_libraries(compiler PRIVATE LexerLib ParserLib)
 
+cmake_policy(SET CMP0135 NEW)
 include(FetchContent)
 FetchContent_Declare(
     googletest

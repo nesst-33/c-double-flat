@@ -65,9 +65,7 @@ additive    = multipl, { ( "+" | "-" ), multipl };
 multipl     = unary, { ( "*" | "/" | "%" ), unary };
 unary       = [ "+" | "-" | "not" ], postfix;
 
-postfix     = type_cast, [ "!" ]; 
-
-type_cast   = arr_expr, { "as", base_type };
+postfix     = type_cast, { "!" | ( "as", base_type ) }; 
 
 arr_expr    = subject, { "[", expression, "]" }
 
