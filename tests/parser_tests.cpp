@@ -30,7 +30,6 @@ std::deque<Token> lex(std::string_view source) {
 //
 // After parsing, I use the ASTPrinter class, which reconstructs the code from
 // the AST, while also parenthesizing all expressions (to express the order of operations).
-//
 
 std::string printParsedProgram(std::string_view source, ErrorHandler& errHandler) {
     std::deque<Token> tokenized = lex(source);
@@ -60,6 +59,11 @@ void checkErrorSeverity(const std::unique_ptr<LangError>& error, Severity severi
 
 void checkNumOfErrs(const ErrorHandler& errHandler, int expectedNum) {
     EXPECT_EQ(errHandler.getErrCount(), expectedNum) << errHandler.formatErrors();
+}
+
+void checkErrMsgAndType(const std::unique_ptr<LangError>& error, std::string_view msg, Severity severity) {
+    checkErrorSeverity(error, severity);
+    EXPECT_EQ(error->getMsg(), msg);
 }
 
 
@@ -121,6 +125,7 @@ TEST(NegativeTests, WarnsOfMissingNewline) {
     checkIfOnlySyntaxErrs(errors);
     checkNumOfErrs(errHandler, 1);
     checkErrorSeverity(errors[0], Severity::WARNING);
+    EXPECT_EQ(errors[0]->getMsg(), "Missing terminating newline");
     EXPECT_EQ(output, expected);
 }
 
@@ -242,5 +247,162 @@ flp z = 'def' as 3
     }
 }
 
+TEST(NegativeTests, ThrowsOnMissingExpressionsInBinaryOps) {
+    std::string source = R"(
+int a = 3 +
+int b = 45 -
+int c = 12 *
+int c = 12 /
+int c = 12 %
+int c = 12 ~
+int c = 12 &
+int c = 12 :
+int c = 12 <<
+int c = 12 >>
+int c = 12 <
+int c = 12 >
+int c = 12 <=
+int c = 12 >=
+int c = 12 ==
+int c = 12 !=
+int c = true and
+int c = true or
+)";
+    std::string expected = R"()";
+    ErrorHandler errHandler;
+    EXPECT_EQ(printParsedProgram(source, errHandler), expected);
 
+    const auto& errs = errHandler.getErrors();
+    checkIfOnlySyntaxErrs(errs);
+    checkNumOfErrs(errHandler, 18);
+    for (int i{}; i < errs.size(); i++) {
+        checkErrorSeverity(errs[i], Severity::ERROR);
+        if (i < 2)
+            EXPECT_EQ(errs[i]->getMsg(), "Missing expression after additive operator");
+        else if (i < 5)
+            EXPECT_EQ(errs[i]->getMsg(), "Missing expression after multiplicative operator");
+        else if (i < 10)
+            EXPECT_EQ(errs[i]->getMsg(), "Missing expression after array operator");
+        else if (i < 14)
+            EXPECT_EQ(errs[i]->getMsg(), "Missing expression after inequality operator");
+        else if (i < 16)
+            EXPECT_EQ(errs[i]->getMsg(), "Missing expression after equality operator");
+        else if (i < 17)
+            EXPECT_EQ(errs[i]->getMsg(), "Missing expression after 'and' keyword");
+        else
+            EXPECT_EQ(errs[i]->getMsg(), "Missing expression after 'or' keyword");
+    }
+}
 
+TEST(NegativeTests, ThrowsOnMissingAssignmentOrFuncCall) {
+    std::string source = R"(
+a
+int a =
+a =
+a +=
+a -=
+a *=
+a /=
+a %=
+a ~=
+    )";
+    
+    std::string expected = R"()";
+
+    ErrorHandler errHandler;
+    EXPECT_EQ(printParsedProgram(source, errHandler), expected);
+
+    const auto& errs = errHandler.getErrors();
+    checkIfOnlySyntaxErrs(errs);
+    checkNumOfErrs(errHandler, 9);
+    for (const auto& err : errs)
+        checkErrorSeverity(err, Severity::ERROR);
+    for (int i{}; i < errs.size(); i++) {
+        checkErrorSeverity(errs[i], Severity::ERROR);
+        if (i == 0)
+            EXPECT_EQ(errs[i]->getMsg(), "Expected assignment or function call after identifier");
+        else
+            EXPECT_EQ(errs[i]->getMsg(), "Expected expression after assignment operator");
+    }
+}
+
+TEST(NegativeTests, ThrowsOnMissingType) {
+    std::string source = R"(
+const arr a = 4
+const int fun(int a, arr b) 
+{
+}
+)";
+    std::string expected = R"({
+}
+)";
+
+    ErrorHandler errHandler;
+    EXPECT_EQ(printParsedProgram(source, errHandler), expected);
+    const auto& errs = errHandler.getErrors();
+    checkIfOnlySyntaxErrs(errs);
+    checkNumOfErrs(errHandler, 2);
+    for (const auto& err : errs) {
+        checkErrorSeverity(err, Severity::ERROR);
+        EXPECT_EQ(err->getMsg(), "Missing type in declaration");
+    }
+}
+
+TEST(NegativeTests, ThrowsOnMissingIdentifier) {
+    std::string source = R"(
+flp = 4
+arr int = []
+const str = "abc"
+const int fun(int)
+{
+}
+    )";
+
+    std::string expected = R"({
+}
+)";
+
+    ErrorHandler errHandler;
+    EXPECT_EQ(printParsedProgram(source, errHandler), expected);
+    const auto& errs = errHandler.getErrors();
+    checkIfOnlySyntaxErrs(errs);
+    checkNumOfErrs(errHandler, 4);
+    for (const auto& err : errs) {
+        checkErrorSeverity(err, Severity::ERROR);
+        EXPECT_EQ(err->getMsg(), "Expected identifier name after type");
+    }
+
+}
+
+TEST(NegativeTests, ThrowsOnBadFunctionDeclarations) {
+    std::string source = R"(
+int fun(int asdf
+{
+
+}
+
+int fun(int asdf, )
+{
+
+}
+
+int fun()
+)";
+    std::string expected = R"(int fun(int asdf)
+{
+}
+int fun(int asdf)
+{
+}
+)";
+
+    ErrorHandler errHandler;
+    EXPECT_EQ(printParsedProgram(source, errHandler), expected);
+    const auto& errs = errHandler.getErrors();
+    checkIfOnlySyntaxErrs(errs);
+    checkNumOfErrs(errHandler, 3);
+
+    checkErrMsgAndType(errs[0], "Missing closing bracket in parameter list", Severity::WARNING);
+    checkErrMsgAndType(errs[1], "Trailing comma in parameter list", Severity::WARNING);
+    checkErrMsgAndType(errs[2], "Missing function body", Severity::ERROR);
+}

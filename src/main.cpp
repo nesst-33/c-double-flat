@@ -40,9 +40,17 @@ int main()
     };
 
     std::string source = R"(
-arr int y = [0, 1, 2
-arr flp z = y[0[1]
-z[0 = .14
+int fun(int asdf
+{
+
+}
+
+int fun(int asdf, )
+{
+
+}
+
+int fun()
         )";
 
     std::deque<Token> tokenized = lex(source);

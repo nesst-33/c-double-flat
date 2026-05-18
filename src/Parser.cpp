@@ -242,7 +242,7 @@ std::unique_ptr<Statement> Parser::parseVarDeclAssign(TypeInfo type, std::string
     std::unique_ptr<Expression> initializer;
     if (match(TokenType::ASSIGN_T)) {
         initializer = parseExpression();
-        throwIfMissing(initializer, "Invalid expression after '='");
+        throwIfMissing(initializer, "Expected expression after assignment operator");
     }
 
     return std::make_unique<VarDeclStmt>(type, name, std::move(initializer), pos);
@@ -263,7 +263,7 @@ std::vector<Parameter> Parser::parseParameters() {
         typeOpt = parseType();
         
         if (!typeOpt) {
-            error("Trailing comma", previous().position);
+            m_errorHandler.report(std::make_unique<SyntaxError>("Trailing comma in parameter list", Severity::WARNING, previous().position));
             continue;
         }
 
@@ -335,12 +335,12 @@ std::unique_ptr<Statement> Parser::parseAssign(std::string name, Position pos) {
     throwIfMissing(match(TokenType::ASSIGN_T, TokenType::ADD_ASSIGN_T, TokenType::SUB_ASSIGN_T,
                 TokenType::MULT_ASSIGN_T, TokenType::DIV_ASSIGN_T, TokenType::MOD_ASSIGN_T,
                 TokenType::CONCAT_ASSIGN_T), 
-            "Expected assignment or function call");
+            "Expected assignment or function call after identifier");
 
     Position assPos = previous().position;
     TokenType assType = previous().type;
     auto rhs = parseExpression();
-    throwIfMissing(rhs, "Expected expression");
+    throwIfMissing(rhs, "Expected expression after assignment operator");
     
     return assTypeToObject[to_idx(assType)](std::move(lhs), assPos, std::move(rhs));
 }
@@ -477,7 +477,7 @@ std::unique_ptr<Expression> Parser::parseMultiplExpr() {
         TokenType multType = previous().type;
         Position multPosition = previous().position;
         auto rightFactor = parseUnaryExpr();
-        throwIfMissing(rightFactor, "Missing experssion after multiplicative operator");
+        throwIfMissing(rightFactor, "Missing expression after multiplicative operator");
         leftFactor = binaryOpTypeToObject[to_idx(multType)](std::move(leftFactor), multPosition, std::move(rightFactor));
     }
 
