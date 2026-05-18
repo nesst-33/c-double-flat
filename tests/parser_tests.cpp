@@ -84,7 +84,7 @@ void checkErrs(const std::vector<std::unique_ptr<LangError>>& errs,
 }
 
 
-TEST(SingleStatementTests, OrderOfOperations) {
+TEST(StatementTests, OrderOfOperations) {
     std::string source = R"(
 int x = 2 + 3 * 7
 int y = 3 / 7 - 2 + 3
@@ -102,6 +102,7 @@ bool j = true and false or false and false
 int k = +-not-+not b
 int l = 3 - +-2
 int test_parenth = (3 + 2) * 7
+arr arr int a = [[1*2, 2, 3], [1, 3, 4]]
 bool final_boss = not matrix[0][1]! as flp * 5 + 10 << 2 > value and ready
 )"; 
 
@@ -121,6 +122,7 @@ bool j = ((true and false) or (false and false))
 int k = (+(-(not (-(+(not b))))))
 int l = (3 - (+(-2)))
 int test_parenth = ((3 + 2) * 7)
+arr arr int a = [[(1 * 2), 2, 3], [1, 3, 4]]
 bool final_boss = ((((((not ((((matrix[0])[1])!) as flp)) * 5) + 10) << 2) > value) and ready)
 )";
 
@@ -128,6 +130,55 @@ bool final_boss = ((((((not ((((matrix[0])[1])!) as flp)) * 5) + 10) << 2) > val
     std::string output = printParsedProgram(source, errHandler);
     EXPECT_EQ(errHandler.getErrCount(), 0);
     ASSERT_EQ(output, expected) << output;
+}
+
+TEST(StatementTests, IfStatements) {
+    std::string source = R"(
+if (a + 2 > 3 / test) {
+    a = 4
+} else 
+{
+    a = 6
+}
+
+if (a + 2 < 3)
+{
+    c += 5
+}
+
+
+if (a + 2 < 3)
+{
+    c += 5
+} else { arr int a = [3, 2, 1]
+}
+)";
+
+    std::string expected = R"(if (((a + 2) > (3 / test)))
+{
+	a = 4
+}
+else
+{
+	a = 6
+}
+if (((a + 2) < 3))
+{
+	c += 5
+}
+if (((a + 2) < 3))
+{
+	c += 5
+}
+else
+{
+	arr int a = [3, 2, 1]
+}
+)";
+    ErrorHandler errHandler;
+	std::string output = printParsedProgram(source, errHandler);
+    EXPECT_EQ(output, expected) << output;
+    checkNumOfErrs(errHandler, 0);
 }
 
 TEST(NegativeTests, WarnsOfMissingNewline) {
@@ -416,12 +467,11 @@ int fun(int asdf)
     ErrorHandler errHandler;
     EXPECT_EQ(printParsedProgram(source, errHandler), expected);
     const auto& errs = errHandler.getErrors();
-    checkIfOnlySyntaxErrs(errs);
-    checkNumOfErrs(errHandler, 3);
-
-    checkErrMsgAndType(errs[0], "Missing closing bracket in parameter list", Severity::WARNING);
-    checkErrMsgAndType(errs[1], "Trailing comma in parameter list", Severity::WARNING);
-    checkErrMsgAndType(errs[2], "Missing function body", Severity::ERROR);
+    checkErrs(errs, {
+            {"Missing closing bracket in parameter list", Severity::WARNING},
+            {"Trailing comma in parameter list", Severity::WARNING},
+            {"Missing function body", Severity::ERROR},
+            });
 }
 
 TEST(NegativeTests, BadVoidFuncs) {
@@ -434,11 +484,10 @@ void test_func
     ErrorHandler errHandler;
     EXPECT_EQ(printParsedProgram(source, errHandler), expected);
     const auto& errs = errHandler.getErrors();
-    checkIfOnlySyntaxErrs(errs);
-    checkNumOfErrs(errHandler, 2);
-
-    checkErrMsgAndType(errs[0], "Expected identifier name after type", Severity::ERROR);
-    checkErrMsgAndType(errs[1], "Missing function declaration", Severity::ERROR);
+    checkErrs(errs, {
+            {"Expected identifier name after type", Severity::ERROR},
+            {"Missing function declaration", Severity::ERROR},
+            });
 }
 
 TEST(NegativeTests, BadWhileStatements) {
@@ -469,15 +518,14 @@ while (true)
     ErrorHandler errHandler;
     EXPECT_EQ(printParsedProgram(source, errHandler), expected);
     const auto& errs = errHandler.getErrors();
-    checkIfOnlySyntaxErrs(errs);
-    checkNumOfErrs(errHandler, 6);
-
-    checkErrMsgAndType(errs[0], "Missing left bracket", Severity::WARNING);
-    checkErrMsgAndType(errs[1], "Invalid condition", Severity::ERROR);
-    checkErrMsgAndType(errs[2], "Invalid condition", Severity::ERROR);
-    checkErrMsgAndType(errs[3], "Missing right bracket", Severity::WARNING);
-    checkErrMsgAndType(errs[4], "Missing left bracket", Severity::WARNING);
-    checkErrMsgAndType(errs[5], "Missing while body", Severity::ERROR);
+    checkErrs(errs, {
+            {"Missing left bracket", Severity::WARNING},
+            {"Invalid condition", Severity::ERROR},
+            {"Invalid condition", Severity::ERROR},
+            {"Missing right bracket", Severity::WARNING},
+            {"Missing left bracket", Severity::WARNING},
+            {"Missing while body", Severity::ERROR},
+            });
 }
 
 TEST(NegativeTests, BadIfStatements) {
@@ -500,4 +548,129 @@ if (true)
             });
 }
 
+TEST(IntegrationTest, ExampleProgram1) {
+	std::string source = R"(
+const flp PI = 3.14
+const flp DOT_FIRST = .14
+const flp DOT_LAST = 3.
+
+str double_quoted = "Testing escapes: \n \t \r \" \\ "
+str single_quoted = 'Testing escapes: \n \t \r \' \\ '
+
+const arr arr int GLOBAL_MATRIX = [[1, 2], [3, 4]]
+
+void test_control_flow(int limit, bool is_active) {
+    int i = 0
+    
+    while (i < limit) {
+        if ((i % 2 == 0) and is_active) {
+            {
+                int scoped_var = 1
+                scoped_var += i
+            }
+        } else {
+            bool flag = false
+            flag ~= true
+        }
+        
+        i += 1
+    }
+}
+
+arr arr flp complex_operations(arr flp input_arr, flp scalar) {
+    arr flp local_arr = input_arr
+    
+    local_arr[0] = 10.
+    local_arr[1] -= 2.5
+    local_arr[2] *= scalar
+    local_arr[3] /= 2.
+    local_arr[4] %= 1.5
+    
+    arr flp merged = local_arr ~ [ 1.1, 2.2 ] : [ 3.3 ] << 1 >> 2 & [ 4.4 ]
+    
+    return [ merged, [ scalar, .5 ] ]
+}
+
+int main() {
+    int base_val = 10
+    
+    test_control_flow(base_val, true)
+    
+    arr flp floats = [ 1., 2., 3., 4., 5. ]
+    arr arr flp matrix_result = complex_operations(floats, 2.5)
+    
+    flp extracted = matrix_result[0][(1 + 1)]
+    
+    int precedence_monster = not 5! * 2 + base_val ~ 20 < 30 == true and false or true
+    
+    int cast_test = 3.14 as int! + base_val as flp as int
+    
+    return precedence_monster
+}
+)";
+
+std::string expected = R"(const flp PI = 3.140000
+const flp DOT_FIRST = 0.140000
+const flp DOT_LAST = 3.000000
+str double_quoted = "Testing escapes: \n \t \r \" \\ "
+str single_quoted = "Testing escapes: \n \t \r \' \\ "
+const arr arr int GLOBAL_MATRIX = [[1, 2], [3, 4]]
+void test_control_flow(int limit, bool is_active)
+{
+	int i = 0
+	while ((i < limit))
+	{
+		if ((((i % 2) == 0) and is_active))
+		{
+			{
+				int scoped_var = 1
+				scoped_var += i
+			}
+		}
+		else
+		{
+			bool flag = false
+			flag ~= true
+		}
+		i += 1
+	}
+}
+arr arr flp complex_operations(arr flp input_arr, flp scalar)
+{
+	arr flp local_arr = input_arr
+	(local_arr[0]) = 10.000000
+	(local_arr[1]) -= 2.500000
+	(local_arr[2]) *= scalar
+	(local_arr[3]) /= 2.000000
+	(local_arr[4]) %= 1.500000
+	arr flp merged = (((((local_arr ~ [1.100000, 2.200000]) : [3.300000]) << 1) >> 2) & [4.400000])
+	return [merged, [scalar, 0.500000]]
+}
+int main()
+{
+	int base_val = 10
+	test_control_flow(base_val, true)
+	arr flp floats = [1.000000, 2.000000, 3.000000, 4.000000, 5.000000]
+	arr arr flp matrix_result = complex_operations(floats, 2.500000)
+	flp extracted = ((matrix_result[0])[(1 + 1)])
+	int precedence_monster = ((((((((not (5!)) * 2) + base_val) ~ 20) < 30) == true) and false) or true)
+	int cast_test = (((3.140000 as int)!) + ((base_val as flp) as int))
+	return precedence_monster
+}
+)";
+
+	std::istringstream input(source);
+	Lexer lexer(input);
+	ErrorHandler errHandler;
+	Parser parser(lexer, errHandler);
+    Program parsed = parser.parse();
+
+    ASTPrinter printer;
+	printer.visit(parsed);
+	std::string output = printer.getResult();
+
+	checkNumOfErrs(errHandler, 0);
+
+	EXPECT_EQ(output, expected);
+}
 

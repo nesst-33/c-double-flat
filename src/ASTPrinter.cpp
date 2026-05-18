@@ -1,5 +1,6 @@
 #include "ASTPrinter.h"
 #include "Node.h"
+#include <sstream>
 #include <string>
 #include <iostream>
 
@@ -45,8 +46,24 @@ void ASTPrinter::visit(const IntLit& node) {
     result += std::to_string(node.getValue());
 }
 
+std::string escapeString(const std::string& str) {
+    std::string result;
+    for (char c : str) {
+        switch (c) {
+            case '\n': result += "\\n"; break;
+            case '\t': result += "\\t"; break;
+            case '\r': result += "\\r";  break;
+            case '\\': result += "\\\\"; break;
+            case '"':  result += "\\\""; break;
+            case '\'': result += "\\'";  break;
+            default:   result += c;      break;
+        }
+    }
+    return result;
+}
+
 void ASTPrinter::visit(const StrLit& node) {
-    result += "\"" + node.getValue() + "\"";
+    result += "\"" + escapeString(node.getValue()) + "\"";
 }
 
 void ASTPrinter::visit(const FlpLit& node) {
@@ -318,10 +335,13 @@ void ASTPrinter::visit(const VarDeclStmt& node) {
 }
 
 void ASTPrinter::visit(const Scope& node) {
+    printIndent();
     result += "{\n";
     indentLevel++;
     for (const auto& stmt : node.getStatements()) {
-        printIndent();
+        if (!dynamic_cast<Scope*>(stmt.get())) {
+            printIndent();
+        }
         stmt->accept(*this);
         result += "\n";
     }
@@ -337,7 +357,9 @@ void ASTPrinter::visit(const IfStmt& node) {
 
     node.getScope()->accept(*this);
     if (node.getElse()) {
-        result += "\nelse\n";
+        result += "\n";
+        printIndent();
+        result += "else\n";
         node.getElse()->accept(*this);
     }
 }
