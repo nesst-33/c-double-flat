@@ -40,7 +40,9 @@ int main()
     };
 
     std::string source = R"(
-    bool z = not
+arr int y = [0, 1, 2
+arr flp z = y[0[1]
+z[0 = .14
         )";
 
     std::deque<Token> tokenized = lex(source);

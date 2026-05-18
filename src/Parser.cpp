@@ -520,7 +520,7 @@ std::unique_ptr<Expression> Parser::parsePostfix() {
                 type = BaseType::FLP;
             else {
                 m_errorHandler.report(std::make_unique<SyntaxError>(
-                            "Invalid type in type cast", 
+                            "Invalid/missing type in type cast", 
                             Severity::ERROR, 
                             peek().position));
             }

@@ -20,6 +20,7 @@ public:
     virtual void raise() const = 0;
     Severity getSeverity() const { return m_severity; }
     const Position& getPosition() const { return m_pos; }
+    const std::string getMsg() const { return m_msg; }
 
     const char* what() const noexcept override {
         std::ostringstream formatted;

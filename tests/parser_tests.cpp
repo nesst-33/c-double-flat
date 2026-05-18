@@ -179,6 +179,9 @@ arr flp z = (y[(0[1])])
     checkNumOfErrs(errHandler, 3);
     for (const auto& err : errs)
         checkErrorSeverity(err, Severity::WARNING);
+    EXPECT_EQ(errs[0]->getMsg(), "Missing closing square bracket in array literal");
+    EXPECT_EQ(errs[1]->getMsg(), "Missing closing square bracket");
+    EXPECT_EQ(errs[2]->getMsg(), "Missing closing square bracket");
 }
 
 TEST(NegativeTests, ThrowsOnMissingArrIndex) {
@@ -194,8 +197,10 @@ arr bool y = z[]
     const auto& errs = errHandler.getErrors();
     checkIfOnlySyntaxErrs(errs);
     checkNumOfErrs(errHandler, 2);
-    for (const auto& err : errs)
+    for (const auto& err : errs) {
         checkErrorSeverity(err, Severity::ERROR);
+        EXPECT_EQ(err->getMsg(), "Missing expression inside square brackets");
+    }
 }
 
 TEST(NegativeTests, ThrowsOnStrayUnaryOperator) {
@@ -211,6 +216,31 @@ bool z = not
     const auto& errs = errHandler.getErrors();
     checkIfOnlySyntaxErrs(errs);
     checkNumOfErrs(errHandler, 2);
-    for (const auto& err : errs)
+    for (const auto& err : errs) {
         checkErrorSeverity(err, Severity::ERROR);
+        EXPECT_EQ(err->getMsg(), "Expected expression after unary operator");
+    }
 }
+
+TEST(NegativeTests, ThrowsOnInvalidOrMissingTypeInCasts) {
+    std::string source = R"(
+str s = "asdf" as void
+int y = 34 as
+flp z = 'def' as 3
+    )";
+
+    std::string expected = R"()";
+    ErrorHandler errHandler;
+    EXPECT_EQ(printParsedProgram(source, errHandler), expected);
+
+    const auto& errs = errHandler.getErrors();
+    checkIfOnlySyntaxErrs(errs);
+    checkNumOfErrs(errHandler, 3);
+    for (const auto& err : errs) {
+        checkErrorSeverity(err, Severity::ERROR);
+        EXPECT_EQ(err->getMsg(), "Invalid/missing type in type cast");
+    }
+}
+
+
+

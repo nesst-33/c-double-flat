@@ -46,7 +46,7 @@ void ASTPrinter::visit(const IntLit& node) {
 }
 
 void ASTPrinter::visit(const StrLit& node) {
-    result += node.getValue();
+    result += "\"" + node.getValue() + "\"";
 }
 
 void ASTPrinter::visit(const FlpLit& node) {
