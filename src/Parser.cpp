@@ -96,23 +96,18 @@ std::unique_ptr<Statement> Parser::parseScope() {
 //             | id_arr_func_call
 std::unique_ptr<Statement> Parser::parseScopedStmt() {
 
-    try {
-        if (auto st = parseIfStmt())
-            return st;
-        if (auto st = parseWhileStmt())
-            return st;
-        if (auto st = parseScope()) 
-            return st;
-        if (auto st = parseIdArrFunCall()) 
-            return st;
-        if (auto st = parseVarDecl())
-            return st;
-        if (auto st = parseRetStmt())
-            return st;
-    } catch (SyntaxError e) {
-        error(std::format("Syntax error: {}", e.what()), e.getPosition());
-        synchronize();
-    }
+    if (auto st = parseIfStmt())
+        return st;
+    if (auto st = parseWhileStmt())
+        return st;
+    if (auto st = parseScope()) 
+        return st;
+    if (auto st = parseIdArrFunCall()) 
+        return st;
+    if (auto st = parseVarDecl())
+        return st;
+    if (auto st = parseRetStmt())
+        return st;
 
     return nullptr;
 }
@@ -125,7 +120,7 @@ std::unique_ptr<Statement> Parser::parseVarDecl() {
         return nullptr;
 
     TypeInfo type = *typeOpt;
-
+    
     throwIfMissing(match(TokenType::IDENTIFIER_T), "Expected identifier name after type");
 
     std::string name = std::get<std::string>(previous().value);

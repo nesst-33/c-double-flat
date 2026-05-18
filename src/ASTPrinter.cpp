@@ -336,8 +336,10 @@ void ASTPrinter::visit(const IfStmt& node) {
     result += ")\n";
 
     node.getScope()->accept(*this);
-    result += "\nelse\n";
-    node.getElse()->accept(*this);
+    if (node.getElse()) {
+        result += "\nelse\n";
+        node.getElse()->accept(*this);
+    }
 }
 
 void ASTPrinter::visit(const WhileStmt& node) {
