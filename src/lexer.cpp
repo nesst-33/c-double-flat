@@ -302,7 +302,7 @@ Token Lexer::getToken()
     Position startPos = currentPos;
 
     if (m_input.eof())
-        return Token(TokenType::EOT);
+        return Token(TokenType::EOT, startPos);
     if (character == '\n')
         return Token(TokenType::NEWLINE_T, startPos);
 

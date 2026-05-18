@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 #include <deque>
+#include <initializer_list>
 #include <memory>
 #include <sstream>
 #include <string_view>
+#include <span>
 #include "Parser.h"
 #include "ASTPrinter.h"
 #include "Lexer.h"
@@ -61,9 +63,24 @@ void checkNumOfErrs(const ErrorHandler& errHandler, int expectedNum) {
     EXPECT_EQ(errHandler.getErrCount(), expectedNum) << errHandler.formatErrors();
 }
 
+void checkNumOfErrs(const std::vector<std::unique_ptr<LangError>>& errs, int expectedNum) {
+    EXPECT_EQ(errs.size(), expectedNum);
+}
+
 void checkErrMsgAndType(const std::unique_ptr<LangError>& error, std::string_view msg, Severity severity) {
     checkErrorSeverity(error, severity);
     EXPECT_EQ(error->getMsg(), msg);
+}
+
+using ExpectedErr = std::pair<std::string_view, Severity>;
+
+void checkErrs(const std::vector<std::unique_ptr<LangError>>& errs, 
+        std::initializer_list<ExpectedErr> msgSev) {
+    checkNumOfErrs(errs, msgSev.size());
+    checkIfOnlySyntaxErrs(errs);
+    for (int i{}; i < errs.size(); i++) {
+        checkErrMsgAndType(errs[i], (msgSev.begin() + i)->first, (msgSev.begin() + i)->second);
+    }
 }
 
 
@@ -406,3 +423,81 @@ int fun(int asdf)
     checkErrMsgAndType(errs[1], "Trailing comma in parameter list", Severity::WARNING);
     checkErrMsgAndType(errs[2], "Missing function body", Severity::ERROR);
 }
+
+TEST(NegativeTests, BadVoidFuncs) {
+    std::string source = R"(
+void
+void test_func
+)";
+    std::string expected = R"()";
+
+    ErrorHandler errHandler;
+    EXPECT_EQ(printParsedProgram(source, errHandler), expected);
+    const auto& errs = errHandler.getErrors();
+    checkIfOnlySyntaxErrs(errs);
+    checkNumOfErrs(errHandler, 2);
+
+    checkErrMsgAndType(errs[0], "Expected identifier name after type", Severity::ERROR);
+    checkErrMsgAndType(errs[1], "Missing function declaration", Severity::ERROR);
+}
+
+TEST(NegativeTests, BadWhileStatements) {
+    std::string source = R"(
+while 
+while ()
+{
+}
+while (true
+{
+}
+while true)
+{
+}
+while (true)
+)";
+
+    std::string expected = R"({
+}
+while (true)
+{
+}
+while (true)
+{
+}
+)";
+
+    ErrorHandler errHandler;
+    EXPECT_EQ(printParsedProgram(source, errHandler), expected);
+    const auto& errs = errHandler.getErrors();
+    checkIfOnlySyntaxErrs(errs);
+    checkNumOfErrs(errHandler, 6);
+
+    checkErrMsgAndType(errs[0], "Missing left bracket", Severity::WARNING);
+    checkErrMsgAndType(errs[1], "Invalid condition", Severity::ERROR);
+    checkErrMsgAndType(errs[2], "Invalid condition", Severity::ERROR);
+    checkErrMsgAndType(errs[3], "Missing right bracket", Severity::WARNING);
+    checkErrMsgAndType(errs[4], "Missing left bracket", Severity::WARNING);
+    checkErrMsgAndType(errs[5], "Missing while body", Severity::ERROR);
+}
+
+TEST(NegativeTests, BadIfStatements) {
+    std::string source = R"(
+if (true)
+
+if (true) 
+{
+} else
+)";
+    std::string expected = R"()";
+
+    ErrorHandler errHandler;
+    EXPECT_EQ(printParsedProgram(source, errHandler), expected);
+    const auto& errs = errHandler.getErrors();
+
+    checkErrs(errs, {
+            {"Missing if body", Severity::ERROR},
+            {"Missing else body", Severity::ERROR}
+            });
+}
+
+

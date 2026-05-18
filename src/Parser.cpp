@@ -79,11 +79,12 @@ std::unique_ptr<Statement> Parser::parseScope() {
 
     while (!match(TokenType::R_BRACE_T)) {
         try { 
-            if (auto statement = parseScopedStmt())
+            if (auto statement = parseScopedStmt()) {
                 statements.push_back(std::move(statement));
-            else throwIfMissing(match(TokenType::NEWLINE_T), "");
+                consume(TokenType::NEWLINE_T, "Missing terminating newline");
+            }
+            else throwIfMissing(match(TokenType::NEWLINE_T), "Invalid statement");
         } catch (SyntaxError e) {
-            // error(std::format("Invalid statement: {}", e.what()), e.getPosition());
             synchronize();
         }
     }
@@ -144,7 +145,7 @@ std::unique_ptr<Statement> Parser::parseIfStmt() {
     match(TokenType::NEWLINE_T);
 
     auto scope = parseScope();
-    throwIfMissing(scope, "Ill-formed scope");
+    throwIfMissing(scope, "Missing if body");
 
     auto elseStmt = parseElseBody();
 
@@ -171,7 +172,7 @@ std::unique_ptr<Statement> Parser::parseElseBody() {
     match(TokenType::NEWLINE_T);
 
     auto scope = parseScope();
-    throwIfMissing(scope, "Invalid else body");
+    throwIfMissing(scope, "Missing else body");
 
     return scope;
 }

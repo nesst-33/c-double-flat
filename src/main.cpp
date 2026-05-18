@@ -40,18 +40,12 @@ int main()
     };
 
     std::string source = R"(
-int fun(int asdf
+if (true)
+
+if (true) 
 {
-
-}
-
-int fun(int asdf, )
-{
-
-}
-
-int fun()
-        )";
+} else
+)";
 
     std::deque<Token> tokenized = lex(source);
 
