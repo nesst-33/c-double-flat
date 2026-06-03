@@ -11,5 +11,18 @@ target_link_libraries(
     LexerLib
 )
 
+add_executable(
+    parser_tests
+    parser_tests.cpp
+)
+
+target_link_libraries(
+    parser_tests
+    GTest::gtest_main
+    LexerLib
+    ParserLib
+)
+
 include(GoogleTest)
 gtest_discover_tests(lexer_tests)
+gtest_discover_tests(parser_tests)

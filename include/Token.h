@@ -1,6 +1,7 @@
-#ifndef TOKEN_H
-#define TOKEN_H
+#ifndef _TOKEN_H
+#define _TOKEN_H
 
+#include <format>
 #include <string>
 #include <variant>
 
@@ -13,6 +14,9 @@ struct Position
     int offset{}; // NOTE: this is a logical character offset; NOT A BYTE OFFSET!
 
     bool operator==(const Position&) const = default;
+    std::string print() const {
+        return std::format("line: {}, column: {} (char offset: {})", line, column, offset);
+    }
 };
 
 enum class TokenType
@@ -64,8 +68,11 @@ enum class TokenType
     INT_T,
     FLP_T,
     STR_T,
+    BOOL_T,
     ARR_T,
     RETURN_T,
+    TRUE_T,
+    FALSE_T,
 
     COMMA_T,            // ,
     L_BRACKET_T,        // (

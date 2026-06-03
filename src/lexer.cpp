@@ -17,7 +17,10 @@ const std::unordered_map<std::string_view, TokenType> Lexer::keyword_map = {
     {"flp", TokenType::FLP_T},
     {"str", TokenType::STR_T},
     {"arr", TokenType::ARR_T},
-    {"return", TokenType::RETURN_T}
+    {"return", TokenType::RETURN_T},
+    {"true", TokenType::TRUE_T},
+    {"false", TokenType::FALSE_T},
+    {"bool", TokenType::BOOL_T}
 };
 
 const std::unordered_map<std::string_view, TokenType> Lexer::operator_map = {
@@ -299,7 +302,7 @@ Token Lexer::getToken()
     Position startPos = currentPos;
 
     if (m_input.eof())
-        return Token(TokenType::EOT);
+        return Token(TokenType::EOT, startPos);
     if (character == '\n')
         return Token(TokenType::NEWLINE_T, startPos);
 

@@ -3,6 +3,8 @@
 
 #include "Token.h"
 #include <iostream>
+#include <deque>
+#include <queue>
 #include <unordered_map>
 #include <string_view>
 #include <stdexcept>
@@ -17,12 +19,36 @@ private:
     Position m_pos;
 };
 
-class Lexer
+
+class ILexer 
+{
+public:
+    virtual Token getToken() = 0;
+    virtual Position getPosition() const = 0;
+    virtual ~ILexer() = default;
+};
+
+class MockLexer : public ILexer {
+public:
+    MockLexer(std::deque<Token> tokenList) : tokenQueue(std::move(tokenList)) {}
+    Token getToken() override {
+        Token token = tokenQueue.front();
+        tokenQueue.pop();
+        return token;
+    }
+    Position getPosition() const override {
+        return tokenQueue.front().position;
+    }
+private:
+    std::queue<Token> tokenQueue;
+};
+
+class Lexer : public ILexer
 {
 public:
     Lexer(std::istream& input) : m_input(input) {}
-    Position getPosition() const { return currentPos; }
-    Token getToken();
+    Position getPosition() const override { return currentPos; }
+    Token getToken() override;
 
 private:
     std::istream& m_input;
