@@ -3,6 +3,62 @@
 #include <memory>
 #include <vector>
 
+auto Parser::createBinOpTable() 
+    -> std::array<BinOpFactory, std::to_underlying(TokenType::UNKNOWN)> {
+
+    std::array<BinOpFactory, std::to_underlying(TokenType::UNKNOWN)> table{};
+
+    table[std::to_underlying(TokenType::PLUS_T)] = makeBinOpFactory<AddExpr>(); 
+    table[std::to_underlying(TokenType::MINUS_T)] = makeBinOpFactory<SubExpr>(); 
+    table[std::to_underlying(TokenType::MULT_T)] = makeBinOpFactory<MultExpr>(); 
+    table[std::to_underlying(TokenType::DIV_T)] = makeBinOpFactory<DivExpr>(); 
+    table[std::to_underlying(TokenType::MOD_T)] = makeBinOpFactory<ModExpr>(); 
+    table[std::to_underlying(TokenType::CONCAT_T)] = makeBinOpFactory<ConcatExpr>(); 
+    table[std::to_underlying(TokenType::CONJUN_T)] = makeBinOpFactory<ConjunExpr>(); 
+    table[std::to_underlying(TokenType::SPLIT_T)] = makeBinOpFactory<SplitExpr>(); 
+    table[std::to_underlying(TokenType::APPEND_T)] = makeBinOpFactory<AppendExpr>(); 
+    table[std::to_underlying(TokenType::EXTRACT_T)] = makeBinOpFactory<ExtractExpr>(); 
+    table[std::to_underlying(TokenType::GREATER_T)] = makeBinOpFactory<GreatExpr>(); 
+    table[std::to_underlying(TokenType::LESSER_T)] = makeBinOpFactory<LessExpr>(); 
+    table[std::to_underlying(TokenType::EQ_T)] = makeBinOpFactory<EqExpr>(); 
+    table[std::to_underlying(TokenType::NOT_EQ_T)] = makeBinOpFactory<NotEqExpr>(); 
+    table[std::to_underlying(TokenType::GREATER_EQ_T)] = makeBinOpFactory<GreatEqExpr>(); 
+    table[std::to_underlying(TokenType::LESSER_EQ_T)] = makeBinOpFactory<LessEqExpr>(); 
+    table[std::to_underlying(TokenType::AND_T)] = makeBinOpFactory<AndExpr>(); 
+    table[std::to_underlying(TokenType::OR_T)] = makeBinOpFactory<OrExpr>(); 
+
+    return table;
+}
+
+auto Parser::createUnaryOpTable() 
+    -> std::array<UnaryOpFactory, std::to_underlying(TokenType::UNKNOWN)> {
+
+    std::array<UnaryOpFactory, std::to_underlying(TokenType::UNKNOWN)> table{};
+
+    table[std::to_underlying(TokenType::PLUS_T)] = makeUnaryOpFactory<PositiveExpr>();
+    table[std::to_underlying(TokenType::MINUS_T)] = makeUnaryOpFactory<NegativeExpr>();
+    table[std::to_underlying(TokenType::NOT_T)] = makeUnaryOpFactory<NotExpr>();
+    table[std::to_underlying(TokenType::CARDINALITY_T)] = makeUnaryOpFactory<CardinalityExpr>();
+
+    return table;
+}
+
+auto Parser::createAssignTable() 
+    -> std::array<AssignFactory, std::to_underlying(TokenType::UNKNOWN)> {
+
+    std::array<AssignFactory, std::to_underlying(TokenType::UNKNOWN)> table{}; 
+
+    table[std::to_underlying(TokenType::ASSIGN_T)] = makeAssignFactory<BasicAssignStmt>();
+    table[std::to_underlying(TokenType::ADD_ASSIGN_T)] = makeAssignFactory<AddAssignStmt>();
+    table[std::to_underlying(TokenType::SUB_ASSIGN_T)] = makeAssignFactory<SubAssignStmt>();
+    table[std::to_underlying(TokenType::MULT_ASSIGN_T)] = makeAssignFactory<MultAssignStmt>();
+    table[std::to_underlying(TokenType::DIV_ASSIGN_T)] = makeAssignFactory<DivAssignStmt>();
+    table[std::to_underlying(TokenType::MOD_ASSIGN_T)] = makeAssignFactory<ModAssignStmt>();
+    table[std::to_underlying(TokenType::CONCAT_ASSIGN_T)] = makeAssignFactory<ConcatAssignStmt>();
+
+    return table;
+}
+
 void Parser::synchronize() {
     while (!isAtEnd()) {
         advance();
@@ -121,10 +177,7 @@ std::unique_ptr<Statement> Parser::parseVarDecl() {
 
     TypeInfo type = *typeOpt;
     
-    throwIfMissing(match(TokenType::IDENTIFIER_T), "Expected identifier name after type");
-
-    std::string name = std::get<std::string>(previous().value);
-
+    std::string name = consumeIdentifier();
     return parseVarDeclAssign(type, name, startPos);
 }
 
@@ -194,8 +247,7 @@ std::unique_ptr<Statement> Parser::parseVarOrFuncDecl() {
         return nullptr;
 
     TypeInfo type = *typeOpt;
-    throwIfMissing(match(TokenType::IDENTIFIER_T), "Expected identifier name after type");
-    std::string name = std::get<std::string>(previous().value);
+    std::string name = consumeIdentifier();
 
     if (auto func = parseFuncDecl(type, name, startPos))
         return func;
@@ -210,9 +262,7 @@ std::unique_ptr<Statement> Parser::parseVoidFuncDecl() {
     Position startPos = previous().position;
     TypeInfo type {BaseType::VOID};
     
-    throwIfMissing(match(TokenType::IDENTIFIER_T), "Expected identifier name after type");
-
-    std::string name = std::get<std::string>(previous().value);
+    std::string name = consumeIdentifier();
     auto func = parseFuncDecl(type, name, startPos);
     throwIfMissing(func, "Missing function declaration");
 
@@ -252,8 +302,8 @@ std::vector<Parameter> Parser::parseParameters() {
         return params;
 
     TypeInfo type = *typeOpt;
-    throwIfMissing(match(TokenType::IDENTIFIER_T), "Expected identifier name after type");
-    params.push_back({std::move(type), std::get<std::string>(previous().value), previous().position});
+    std::string name = consumeIdentifier();
+    params.push_back({std::move(type), name, previous().position});
 
     while (match(TokenType::COMMA_T)) {
         typeOpt = parseType();
@@ -264,8 +314,8 @@ std::vector<Parameter> Parser::parseParameters() {
         }
 
         type = *typeOpt; 
-        throwIfMissing(match(TokenType::IDENTIFIER_T), "Expected identifier name after type");
-        Parameter param = {std::move(type), std::get<std::string>(previous().value), previous().position};
+        std::string name = consumeIdentifier();
+        Parameter param = {std::move(type), name, previous().position};
         params.push_back(param);
     }
 
@@ -338,7 +388,7 @@ std::unique_ptr<Statement> Parser::parseAssign(std::string name, Position pos) {
     auto rhs = parseExpression();
     throwIfMissing(rhs, "Expected expression after assignment operator");
     
-    return assTypeToObject[to_idx(assType)](std::move(lhs), assPos, std::move(rhs));
+    return assTypeToObject[std::to_underlying(assType)](std::move(lhs), assPos, std::move(rhs));
 }
 
 // array_idx = "[", expression, "]", {"[", expression, "]"}
@@ -373,7 +423,7 @@ std::unique_ptr<Expression> Parser::parseExpression() {
         auto rightFactor = parseAndExpr();
         throwIfMissing(rightFactor, "Missing expression after 'or' keyword");
 
-        leftFactor = binaryOpTypeToObject[to_idx(TokenType::OR_T)](std::move(leftFactor), orPosition, std::move(rightFactor));
+        leftFactor = binaryOpTypeToObject[std::to_underlying(TokenType::OR_T)](std::move(leftFactor), orPosition, std::move(rightFactor));
     }
     return leftFactor;
 }
@@ -389,7 +439,7 @@ std::unique_ptr<Expression> Parser::parseAndExpr() {
         auto rightFactor = parseEqualityExpr();
         throwIfMissing(rightFactor, "Missing expression after 'and' keyword");
 
-        leftFactor = binaryOpTypeToObject[to_idx(TokenType::AND_T)](std::move(leftFactor), andPosition, std::move(rightFactor));
+        leftFactor = binaryOpTypeToObject[std::to_underlying(TokenType::AND_T)](std::move(leftFactor), andPosition, std::move(rightFactor));
     }
 
     return leftFactor;
@@ -406,7 +456,7 @@ std::unique_ptr<Expression> Parser::parseEqualityExpr() {
         Position eqPosition = previous().position;
         auto rightFactor = parseRelationalExpr();
         throwIfMissing(rightFactor, "Missing expression after equality operator");
-        leftFactor = binaryOpTypeToObject[to_idx(eqType)](std::move(leftFactor), eqPosition, std::move(rightFactor));
+        leftFactor = binaryOpTypeToObject[std::to_underlying(eqType)](std::move(leftFactor), eqPosition, std::move(rightFactor));
     }
 
     return leftFactor;
@@ -423,7 +473,7 @@ std::unique_ptr<Expression> Parser::parseRelationalExpr() {
         Position eqPosition = previous().position;
         auto rightFactor = parseArrayOpsExpr();
         throwIfMissing(rightFactor, "Missing expression after inequality operator");
-        leftFactor = binaryOpTypeToObject[to_idx(relType)](std::move(leftFactor), eqPosition, std::move(rightFactor));
+        leftFactor = binaryOpTypeToObject[std::to_underlying(relType)](std::move(leftFactor), eqPosition, std::move(rightFactor));
     }
 
     return leftFactor;
@@ -440,7 +490,7 @@ std::unique_ptr<Expression> Parser::parseArrayOpsExpr() {
         Position arrOpPosition = previous().position;
         auto rightFactor = parseAdditiveExpr();
         throwIfMissing(rightFactor, "Missing expression after array operator");
-        leftFactor = binaryOpTypeToObject[to_idx(arrOpType)](std::move(leftFactor), arrOpPosition, std::move(rightFactor));
+        leftFactor = binaryOpTypeToObject[std::to_underlying(arrOpType)](std::move(leftFactor), arrOpPosition, std::move(rightFactor));
     }
 
     return leftFactor;
@@ -457,7 +507,7 @@ std::unique_ptr<Expression> Parser::parseAdditiveExpr() {
         Position addPosition = previous().position;
         auto rightFactor = parseMultiplExpr();
         throwIfMissing(rightFactor, "Missing expression after additive operator");
-        leftFactor = binaryOpTypeToObject[to_idx(addType)](std::move(leftFactor), addPosition, std::move(rightFactor));
+        leftFactor = binaryOpTypeToObject[std::to_underlying(addType)](std::move(leftFactor), addPosition, std::move(rightFactor));
     }
 
     return leftFactor;
@@ -474,7 +524,7 @@ std::unique_ptr<Expression> Parser::parseMultiplExpr() {
         Position multPosition = previous().position;
         auto rightFactor = parseUnaryExpr();
         throwIfMissing(rightFactor, "Missing expression after multiplicative operator");
-        leftFactor = binaryOpTypeToObject[to_idx(multType)](std::move(leftFactor), multPosition, std::move(rightFactor));
+        leftFactor = binaryOpTypeToObject[std::to_underlying(multType)](std::move(leftFactor), multPosition, std::move(rightFactor));
     }
 
     return leftFactor;
@@ -487,7 +537,7 @@ std::unique_ptr<Expression> Parser::parseUnaryExpr() {
         Position unaryPosition = previous().position;
         auto factor = parseUnaryExpr();
         throwIfMissing(factor, "Expected expression after unary operator", unaryPosition);
-        return unaryOpTypeToObject[to_idx(unaryType)](std::move(factor), unaryPosition); 
+        return unaryOpTypeToObject[std::to_underlying(unaryType)](std::move(factor), unaryPosition); 
     }
     
     return parsePostfix();
@@ -501,7 +551,7 @@ std::unique_ptr<Expression> Parser::parsePostfix() {
 
     while (match(TokenType::CARDINALITY_T, TokenType::AS_T)) {
         if (previous().type == TokenType::CARDINALITY_T)
-            factor = unaryOpTypeToObject[to_idx(TokenType::CARDINALITY_T)](std::move(factor), previous().position);
+            factor = unaryOpTypeToObject[std::to_underlying(TokenType::CARDINALITY_T)](std::move(factor), previous().position);
         else {
             Position asPosition = previous().position;
 

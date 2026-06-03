@@ -1,7 +1,7 @@
 #ifndef _TOKEN_H
 #define _TOKEN_H
 
-#include <sstream>
+#include <format>
 #include <string>
 #include <variant>
 
@@ -15,9 +15,7 @@ struct Position
 
     bool operator==(const Position&) const = default;
     std::string print() const {
-        std::ostringstream printed;
-        printed << "line: " << line << ", column: " << column << " (char offset: " << offset << ")";
-        return printed.str();
+        return std::format("line: {}, column: {} (char offset: {})", line, column, offset);
     }
 };
 

@@ -34,8 +34,6 @@ public:
 
 // EXPRESSIONS
 class Expression : public Node {
-public:
-    virtual ~Expression() = default;
 };
 
 class AsExpr : public Expression {
