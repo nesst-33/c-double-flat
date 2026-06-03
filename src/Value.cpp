@@ -30,5 +30,16 @@ std::variant<int, double> Value::asNumber() const {
         [](std::monostate) -> std::variant<int, double> {
             throw std::runtime_error("Cannot convert null to a number");
         }
+
     }, m_data);
 }
+
+Value Value::operator+(const Value& other) const {
+    auto leftNum = this->asNumber();
+    auto rightNum = other.asNumber();
+
+    return std::visit([](auto&& l, auto&& r) {
+            return Value(l + r);
+    }, leftNum, rightNum);
+}
+

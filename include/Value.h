@@ -16,6 +16,8 @@ public:
     std::variant<int, double> asNumber() const;
     auto getValue() const { return m_data; }
 
+    Value operator+(const Value& other) const;
+
 private:
     std::variant<std::monostate, int, double, bool, std::string> m_data;
 };
