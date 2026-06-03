@@ -39,7 +39,38 @@ Value Value::operator+(const Value& other) const {
     auto rightNum = other.asNumber();
 
     return std::visit([](auto&& l, auto&& r) {
-            return Value(l + r);
+        return Value(l + r);
     }, leftNum, rightNum);
+}
+
+Value Value::operator-(const Value& other) const {
+    auto leftNum = this->asNumber();
+    auto rightNum = other.asNumber();
+
+    return std::visit([](auto&& l, auto&& r) {
+        return Value(l - r);
+    }, leftNum, rightNum);
+}
+
+Value Value::operator*(const Value& other) const {
+    auto leftNum = this->asNumber();
+    auto rightNum = other.asNumber();
+
+    return std::visit([](auto&& l, auto&& r) {
+        return Value(l * r);
+    }, leftNum, rightNum);
+}
+
+Value Value::operator/(const Value& other) const {
+    auto leftNum = this->asNumber();
+    auto rightNum = other.asNumber();
+
+    return std::visit([](auto&& l, auto&& r) {
+        if (r == 0)
+            throw std::runtime_error("Cannot divide by zero");
+
+        return Value(static_cast<double>(l) / r);
+    }, leftNum, rightNum);
+
 }
 
