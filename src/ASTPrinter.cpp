@@ -1,9 +1,6 @@
 #include "ASTPrinter.h"
 #include "Node.h"
-#include <sstream>
 #include <string>
-#include <iostream>
-
 
 void ASTPrinter::printType(BaseType type) {
     switch (type) {

@@ -4,7 +4,6 @@
 #include <memory>
 #include <sstream>
 #include <string_view>
-#include <span>
 #include "Parser.h"
 #include "ASTPrinter.h"
 #include "Lexer.h"
