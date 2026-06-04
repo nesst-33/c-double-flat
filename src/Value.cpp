@@ -210,3 +210,24 @@ int Value::getDepth() const {
     else
         return 0;
 }
+
+Value Value::getCardinality() const {
+    return std::visit(overloaded{
+            [](const std::shared_ptr<ArrayType>& arr) {
+                int size = arr->size();
+                return Value(size);
+            },
+            [](const std::string& str) {
+                int size = str.size();
+                return Value(size);
+            },
+            [](auto val) -> Value {
+                throw std::runtime_error("Cardinality can be only used with string or array types");
+            }
+        }, m_data);
+}
+
+Value Value::negateNum() const {
+    auto num = this->asNumber();
+    return std::visit( [](auto&& val) { return Value(val); }, num);
+}

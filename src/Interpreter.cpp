@@ -1,5 +1,6 @@
 #include "Interpreter.h"
 #include "Node.h"
+#include <algorithm>
 #include <memory>
 #include <stdexcept>
 #include <format>
@@ -53,7 +54,7 @@ void Interpreter::visit(const AddExpr& node) {
     node.getRightFactor()->accept(*this);
     Value rightVal = lastResult;
 
-    lastResult = leftVal + rightVal;
+    lastResult = std::move(leftVal + rightVal);
 }
 
 void Interpreter::visit(const SubExpr& node) {
@@ -62,7 +63,7 @@ void Interpreter::visit(const SubExpr& node) {
     node.getRightFactor()->accept(*this);
     Value rightVal = lastResult;
 
-    lastResult = leftVal - rightVal;
+    lastResult = std::move(leftVal - rightVal);
 }
 
 void Interpreter::visit(const MultExpr& node) {
@@ -71,7 +72,7 @@ void Interpreter::visit(const MultExpr& node) {
     node.getRightFactor()->accept(*this);
     Value rightVal = lastResult;
 
-    lastResult = leftVal * rightVal;
+    lastResult = std::move(leftVal * rightVal);
 }
 
 void Interpreter::visit(const DivExpr& node) {
@@ -80,7 +81,7 @@ void Interpreter::visit(const DivExpr& node) {
     node.getRightFactor()->accept(*this);
     Value rightVal = lastResult;
 
-    lastResult = leftVal / rightVal;
+    lastResult = std::move(leftVal / rightVal);
 }
 
 void Interpreter::visit(const ModExpr& node) {
@@ -89,7 +90,7 @@ void Interpreter::visit(const ModExpr& node) {
     node.getRightFactor()->accept(*this);
     Value rightVal = lastResult;
 
-    lastResult = leftVal % rightVal;
+    lastResult = std::move(leftVal % rightVal);
 }
 
 void Interpreter::visit(const AsExpr& node) {
@@ -98,15 +99,20 @@ void Interpreter::visit(const AsExpr& node) {
 }
 
 void Interpreter::visit(const CardinalityExpr& node) {
+    node.getFactor()->accept(*this);
+    lastResult = std::move(lastResult.getCardinality());
 }
 
 void Interpreter::visit(const PositiveExpr& node) {
+    node.getFactor()->accept(*this);
 }
 
 void Interpreter::visit(const NegativeExpr& node) {
+    node.getFactor()->accept(*this);
+    lastResult = std::move(lastResult.negateNum());
 }
 
-void Interpreter::visit(const NotExpr& node) {
+void Interpreter::visit(const ArrayExpr& node) {
 }
 
 void Interpreter::visit(const ConcatExpr& node) {
@@ -142,14 +148,15 @@ void Interpreter::visit(const EqExpr& node) {
 void Interpreter::visit(const NotEqExpr& node) {
 }
 
+void Interpreter::visit(const NotExpr& node) {
+}
+
 void Interpreter::visit(const AndExpr& node) {
 }
 
 void Interpreter::visit(const OrExpr& node) {
 }
 
-void Interpreter::visit(const ArrayExpr& node) {
-}
 
 // STATEMENTS
 void Interpreter::visit(const VarDeclStmt& node) {
@@ -196,7 +203,6 @@ void Interpreter::visit(const Identifier& node) {
 
 void Interpreter::visit(const FunCall& node) {
 }
-
 
 void Interpreter::visit(const BasicAssignStmt& node) {
 }

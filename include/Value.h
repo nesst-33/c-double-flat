@@ -32,6 +32,9 @@ public:
     Value operator/(const Value& other) const;
     Value operator%(const Value& other) const;
 
+    Value getCardinality() const;
+    Value negateNum() const;
+
     friend std::ostream& operator<<(std::ostream& os, const Value& val);
 
     Value castValue(BaseType type) const;
