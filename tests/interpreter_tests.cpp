@@ -112,3 +112,6 @@ TEST(ValueTests, DivOperator) {
 TEST(ValueTests, ThrowsOnZeroDivision) {
     EXPECT_THROW(divideValues(true, "0.0"), std::runtime_error);
 }
+
+TEST(ValueTests, ModOperator) {}
+TEST(ValueTests, CastsValues) {}

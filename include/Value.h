@@ -34,19 +34,16 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const Value& val);
 
-    int asInt() const;
-    double asFlp() const;
-    bool asBool() const;
-    std::string asStr() const;
-
     Value castValue(BaseType type) const;
-    Value castArray(BaseType type) const;
-
     int getDepth() const;
 
 private:
     Type m_data;
 
+    int asInt() const;
+    double asFlp() const;
+    bool asBool() const;
+    std::string asStr() const;
 };
 
 #endif

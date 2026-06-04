@@ -93,6 +93,8 @@ void Interpreter::visit(const ModExpr& node) {
 }
 
 void Interpreter::visit(const AsExpr& node) {
+    node.getCastedExpr()->accept(*this);
+    lastResult = std::move(lastResult.castValue(node.getType()));
 }
 
 void Interpreter::visit(const CardinalityExpr& node) {
@@ -156,16 +158,18 @@ void Interpreter::visit(const VarDeclStmt& node) {
     if (const auto& initializer = node.getInitializer()) {
         initializer->accept(*this);
         val = lastResult.castValue(node.getType().type);
+
         int targetDepth = node.getType().arrayDepth;
         int depth = val.getDepth(); 
         if ( depth != targetDepth ) {
-            throw std::runtime_error(std::format("Array should be nested {} times; is nested {} times",
+            throw std::runtime_error(std::format("Array should be nested {} time(s); is nested {} time(s)",
                     targetDepth, depth));
         }
     }
     else {
         if ( !node.getType().arrayDepth )
             throw std::runtime_error("Array variables have to be initialized on declaration");
+
         switch(node.getType().type) {
             case BaseType::INT:
                 val.setValue(0);

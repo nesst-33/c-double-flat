@@ -27,7 +27,7 @@ bool boolean = 4 / 2
 str double_quoted = "Testing escapes: \n \t \r \" \\ " 
 str single_quoted = 'Testing escapes: \n \t \r \' \\ '
 
-arr arr int testArr = [['1', "2.5"], [0, 1]]
+arr flp testArr = ["1.5", 2.5] as int
 )";
 
     std::deque<Token> tokenized = lex(source);
