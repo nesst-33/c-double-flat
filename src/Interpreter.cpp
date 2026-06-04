@@ -2,11 +2,13 @@
 #include "Node.h"
 #include <stdexcept>
 
+// ENTRYPOINT
 void Interpreter::visit(const Program& node) {
     for (const auto& statement : node.getStatements())
         statement->accept(*this);
 }
 
+// LITERALS
 // I know the code below violates DRY, but I want it to stay readable (I could use macros here)
 void Interpreter::visit(const StrLit& node) {
     lastResult = Value(node.getValue());
@@ -24,6 +26,25 @@ void Interpreter::visit(const FlpLit& node) {
     lastResult = Value(node.getValue());
 }
 
+void Interpreter::visit(const ArrayLit& node) {
+    const auto& arrElements = node.getValues();
+    auto arrVal = std::make_shared<Value::ArrayType>();
+
+    if (arrElements.empty()) {
+        lastResult = Value(std::move(arrVal));
+        return;
+    }
+
+    for (const auto& element : arrElements) {
+        element->accept(*this);
+        arrVal->push_back(lastResult);
+    }
+
+    lastResult = Value(std::move(arrVal));
+}
+
+// EXPRESSIONS
+// Numeric
 void Interpreter::visit(const AddExpr& node) {
     node.getLeftFactor()->accept(*this);
     Value leftVal = lastResult;
@@ -60,46 +81,13 @@ void Interpreter::visit(const DivExpr& node) {
     lastResult = leftVal / rightVal;
 }
 
-void Interpreter::visit(const VarDeclStmt& node) {
-    // Variables declared without initialization get a default value
-    Value val{};
+void Interpreter::visit(const ModExpr& node) {
+    node.getLeftFactor()->accept(*this);
+    Value leftVal = lastResult;
+    node.getRightFactor()->accept(*this);
+    Value rightVal = lastResult;
 
-    // TODO: array declaration 
-    if (const auto& initializer = node.getInitializer()) {
-        initializer->accept(*this);
-        val = lastResult;
-    }
-    else {
-        switch(node.getType().type) {
-            case BaseType::INT:
-                val.setValue(0);
-                break;
-            case BaseType::FLP:
-                val.setValue(0.);
-                break;
-            case BaseType::BOOL:
-                val.setValue(false);
-                break;
-            case BaseType::STR:
-                val.setValue("");
-                break;
-            case BaseType::VOID:
-                throw std::runtime_error("Cannot declare void variables");
-        }
-    }
-
-    m_env.define(node.getType(), node.getName(), std::move(val));
-}
-
-void Interpreter::visit(const ModExpr& node) {}
-
-void Interpreter::visit(const ArrayLit& node) {
-}
-
-void Interpreter::visit(const Identifier& node) {
-}
-
-void Interpreter::visit(const FunCall& node) {
+    lastResult = leftVal % rightVal;
 }
 
 void Interpreter::visit(const AsExpr& node) {
@@ -158,6 +146,44 @@ void Interpreter::visit(const OrExpr& node) {
 
 void Interpreter::visit(const ArrayExpr& node) {
 }
+
+// STATEMENTS
+void Interpreter::visit(const VarDeclStmt& node) {
+    Value val;
+
+    // TODO: array declaration 
+    if (const auto& initializer = node.getInitializer()) {
+        initializer->accept(*this);
+        val = lastResult.castValue(node.getType().type);
+    }
+    else {
+        switch(node.getType().type) {
+            case BaseType::INT:
+                val.setValue(0);
+                break;
+            case BaseType::FLP:
+                val.setValue(0.);
+                break;
+            case BaseType::BOOL:
+                val.setValue(false);
+                break;
+            case BaseType::STR:
+                val.setValue("");
+                break;
+            case BaseType::VOID:
+                throw std::runtime_error("Cannot declare void variables");
+        }
+    }
+    m_env.define(node.getType(), node.getName(), std::move(val));
+}
+
+
+void Interpreter::visit(const Identifier& node) {
+}
+
+void Interpreter::visit(const FunCall& node) {
+}
+
 
 void Interpreter::visit(const BasicAssignStmt& node) {
 }

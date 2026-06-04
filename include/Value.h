@@ -1,13 +1,23 @@
 #ifndef _VALUE_H
 #define _VALUE_H
 
+#include <memory>
 #include <ostream>
 #include <string>
 #include <variant>
+#include "Node.h"
 
 class Value {
 public:
-    using Type = std::variant<std::monostate, int, double, bool, std::string>;
+    using ArrayType = std::vector<Value>;
+    using Type = std::variant<
+        std::monostate, 
+        int, 
+        double, 
+        bool, 
+        std::string, 
+        std::shared_ptr<ArrayType>
+    >;
 
     Value() : m_data(std::monostate {}) {}
     Value(Type val) : m_data(std::move(val)) {}
@@ -20,8 +30,17 @@ public:
     Value operator-(const Value& other) const;
     Value operator*(const Value& other) const;
     Value operator/(const Value& other) const;
+    Value operator%(const Value& other) const;
 
     friend std::ostream& operator<<(std::ostream& os, const Value& val);
+
+    int asInt() const;
+    double asFlp() const;
+    bool asBool() const;
+    std::string asStr() const;
+
+    Value castValue(BaseType type) const;
+    Value castArray(BaseType type) const;
 
 private:
     Type m_data;

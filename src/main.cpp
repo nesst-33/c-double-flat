@@ -20,11 +20,11 @@ std::deque<Token> lex(std::string_view source) {
 int main()
 {
     std::string source = R"(
-const flp PI = 3 + 2 * 7
-const flp DOT_FIRST = .14
-const flp DOT_LAST = 3.
+const flp PI = (3 + 2) * 2
+const flp DOT_FIRST = 3 % 1
+bool boolean = 4 / 2 
 
-str double_quoted = "Testing escapes: \n \t \r \" \\ "
+str double_quoted = "Testing escapes: \n \t \r \" \\ " 
 str single_quoted = 'Testing escapes: \n \t \r \' \\ '
 )";
 
@@ -39,7 +39,7 @@ str single_quoted = 'Testing escapes: \n \t \r \' \\ '
     interpreter.visit(program);
     std::cout << interpreter.m_env.get("PI");
     std::cout << interpreter.m_env.get("DOT_FIRST");
-    std::cout << interpreter.m_env.get("DOT_LAST");
+    std::cout << interpreter.m_env.get("boolean");
     std::cout << interpreter.m_env.get("double_quoted");
     std::cout << interpreter.m_env.get("single_quoted");
 

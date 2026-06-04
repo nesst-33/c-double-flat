@@ -1,5 +1,10 @@
 #include "Value.h"
+#include <algorithm>
+#include <memory>
 #include <stdexcept>
+#include <cmath>
+#include <string>
+#include <variant>
 
 namespace {
     template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
@@ -19,16 +24,16 @@ std::variant<int, double> Value::asNumber() const {
                     return std::stod(val);
                 return std::stoi(val);
             } catch (std::invalid_argument& e) {
-                throw std::runtime_error("Cannot implicitly convert string '" 
+                throw std::runtime_error("Cannot convert string '" 
                         + val + "' into a number type");
             } catch (std::out_of_range& e) {
-                throw std::runtime_error("Cannot implicitly convert string '" 
+                throw std::runtime_error("Cannot convert string '" 
                         + val + "' into a number type - value is out of range");
             }
         },
 
-        [](std::monostate) -> std::variant<int, double> {
-            throw std::runtime_error("Cannot convert null to a number");
+        [](const auto& unsupported) -> std::variant<int, double> {
+            throw std::runtime_error("Cannot convert this type to a number");
         }
 
     }, m_data);
@@ -66,7 +71,7 @@ Value Value::operator/(const Value& other) const {
     auto rightNum = other.asNumber();
 
     return std::visit([](auto&& l, auto&& r) {
-        if (r == 0)
+        if (!r)
             throw std::runtime_error("Cannot divide by zero");
 
         return Value(static_cast<double>(l) / r);
@@ -74,17 +79,101 @@ Value Value::operator/(const Value& other) const {
 
 }
 
+Value Value::operator%(const Value& other) const {
+    auto leftNum = this->asNumber();
+    auto rightNum = other.asNumber();
+
+    return std::visit([](auto&&l , auto&& r) {
+        if (!r)
+            throw std::runtime_error("Modulus divisor cannot be zero");
+
+        return Value(std::fmod(l, r));
+    }, leftNum, rightNum);
+}
+
 std::ostream& operator<<(std::ostream& os, const Value& val) {
-    std::visit([&os](const auto& v) {
-        using T = std::decay_t<decltype(v)>;
-        if constexpr (std::is_same_v<T, std::monostate>) {
-            os << "null"; 
-        } else {
-            os << v;     
-        }
-
-        os << "\n";
+    std::visit(overloaded{
+        [&os](std::monostate) { os << "void"; },
+        [&os](const auto& v) { os << v; }
     }, val.m_data);
-
+    os << '\n';
     return os;
 }
+
+int Value::asInt() const { 
+    return std::visit( [](auto v) {
+        return static_cast<int>(v);
+    }, this->asNumber());
+}
+
+double Value::asFlp() const {
+    return std::visit( [](auto v) {
+        return static_cast<double>(v);
+    }, this->asNumber());
+}
+
+bool Value::asBool() const {
+    return std::visit(overloaded{
+        [](const std::string& val) {
+            return !val.empty();
+        },
+        
+        [](std::monostate) -> bool {
+            throw std::runtime_error("Cannot convert void to boolean");
+        },
+
+        [](bool val) { return val; },
+
+        [](auto val) {
+            return val != 0;
+        }
+    }, m_data);
+}
+
+std::string Value::asStr() const {
+    return std::visit(overloaded{
+        [](std::monostate) -> std::string {
+            throw std::runtime_error("Cannot convert void to string");
+        },
+
+        [](std::shared_ptr<ArrayType>) -> std::string {
+            throw std::runtime_error("Cannot convert array to string")
+        },
+
+        [](std::string val) { return val; },
+
+        [](bool val) -> std::string {
+            return val ? "true" : "false";
+        },
+
+
+        [](auto val) {
+            return std::to_string(val);
+        }
+    }, m_data);
+}
+
+Value Value::castValue(BaseType type) const {
+    if (const auto* arr = std::get_if<std::shared_ptr<ArrayType>>(&m_data)) {
+        auto newArr = std::make_shared<ArrayType>();
+        for (const auto val& : **arr) {
+            newArr->push_back(val.castValue(type));
+        }
+        return Value(std::move(newArr));
+    }
+    else {
+        switch(type) {
+            case BaseType::INT:
+                return Value(this->asInt());
+            case BaseType::FLP:
+                return Value(this->asFlp());
+            case BaseType::BOOL:
+                return Value(this->asBool());
+            case BaseType::STR:
+                return Value(this->asStr());
+            default:
+                throw std::runtime_error("Cannot cast void values");
+        }
+    }
+}
+

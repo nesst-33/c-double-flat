@@ -16,6 +16,14 @@ struct TypeInfo {
     BaseType type;
     bool isConst {};
     int arrayDepth {};
+
+    bool operator==(const TypeInfo& other) const {
+        return type == other.type && arrayDepth == other.arrayDepth;
+    }
+
+    bool operator!=(const TypeInfo& other) const {
+        return !(*this == other);
+    }
 };
 
 struct Parameter {
