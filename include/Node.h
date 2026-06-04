@@ -1,7 +1,6 @@
 #ifndef _NODE_H
 #define _NODE_H
 
-#include <algorithm>
 #include <utility>
 #include <vector>
 #include <memory>

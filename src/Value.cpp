@@ -74,3 +74,17 @@ Value Value::operator/(const Value& other) const {
 
 }
 
+std::ostream& operator<<(std::ostream& os, const Value& val) {
+    std::visit([&os](const auto& v) {
+        using T = std::decay_t<decltype(v)>;
+        if constexpr (std::is_same_v<T, std::monostate>) {
+            os << "null"; 
+        } else {
+            os << v;     
+        }
+
+        os << "\n";
+    }, val.m_data);
+
+    return os;
+}
