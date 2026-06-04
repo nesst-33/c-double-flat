@@ -35,6 +35,10 @@ public:
     Value getCardinality() const;
     Value negateNum() const;
 
+    Value logicalAnd(const Value& other) const;
+    Value logicalOr(const Value& other) const;
+    Value logicalNot() const;
+
     friend std::ostream& operator<<(std::ostream& os, const Value& val);
 
     Value castValue(BaseType type) const;

@@ -149,12 +149,26 @@ void Interpreter::visit(const NotEqExpr& node) {
 }
 
 void Interpreter::visit(const NotExpr& node) {
+    node.getFactor()->accept(*this);
+    lastResult = std::move(lastResult.logicalNot());
 }
 
 void Interpreter::visit(const AndExpr& node) {
+    node.getLeftFactor()->accept(*this);
+    Value leftFactor = lastResult;
+    node.getRightFactor()->accept(*this);
+    Value rightFactor = lastResult;
+    
+    lastResult = std::move(leftFactor.logicalAnd(rightFactor));
 }
 
 void Interpreter::visit(const OrExpr& node) {
+    node.getLeftFactor()->accept(*this);
+    Value leftFactor = lastResult;
+    node.getRightFactor()->accept(*this);
+    Value rightFactor = lastResult;
+
+    lastResult = std::move(leftFactor.logicalOr(rightFactor));
 }
 
 

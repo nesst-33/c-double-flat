@@ -229,5 +229,23 @@ Value Value::getCardinality() const {
 
 Value Value::negateNum() const {
     auto num = this->asNumber();
-    return std::visit( [](auto&& val) { return Value(val); }, num);
+    return std::visit( [](auto&& val) { return Value(-val); }, num);
+}
+
+Value Value::logicalAnd(const Value& other) const {
+    bool leftFactor = this->asBool();
+    bool rightFactor = other.asBool();
+
+    return Value(leftFactor && rightFactor);
+}
+
+Value Value::logicalOr(const Value& other) const {
+    bool leftFactor = this->asBool();
+    bool rightFactor = other.asBool();
+
+    return Value(leftFactor || rightFactor);
+}
+
+Value Value::logicalNot() const {
+    return Value(!this->asBool()); 
 }
