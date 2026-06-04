@@ -42,8 +42,11 @@ public:
     Value castValue(BaseType type) const;
     Value castArray(BaseType type) const;
 
+    int getDepth() const;
+
 private:
     Type m_data;
+
 };
 
 #endif

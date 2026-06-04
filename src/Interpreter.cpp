@@ -1,6 +1,8 @@
 #include "Interpreter.h"
 #include "Node.h"
+#include <memory>
 #include <stdexcept>
+#include <format>
 
 // ENTRYPOINT
 void Interpreter::visit(const Program& node) {
@@ -151,12 +153,19 @@ void Interpreter::visit(const ArrayExpr& node) {
 void Interpreter::visit(const VarDeclStmt& node) {
     Value val;
 
-    // TODO: array declaration 
     if (const auto& initializer = node.getInitializer()) {
         initializer->accept(*this);
         val = lastResult.castValue(node.getType().type);
+        int targetDepth = node.getType().arrayDepth;
+        int depth = val.getDepth(); 
+        if ( depth != targetDepth ) {
+            throw std::runtime_error(std::format("Array should be nested {} times; is nested {} times",
+                    targetDepth, depth));
+        }
     }
     else {
+        if ( !node.getType().arrayDepth )
+            throw std::runtime_error("Array variables have to be initialized on declaration");
         switch(node.getType().type) {
             case BaseType::INT:
                 val.setValue(0);

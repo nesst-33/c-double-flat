@@ -1,5 +1,6 @@
 #include "Value.h"
 #include <algorithm>
+#include <ios>
 #include <memory>
 #include <stdexcept>
 #include <cmath>
@@ -92,11 +93,22 @@ Value Value::operator%(const Value& other) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& val) {
+    os << std::boolalpha;
     std::visit(overloaded{
         [&os](std::monostate) { os << "void"; },
+
+        [&os](const std::shared_ptr<Value::ArrayType>& arr) {
+            os << "[";
+            for (size_t i{}; i < arr->size() - 1; i++)
+                os << arr->at(i) << ", "; 
+            os << arr->back();
+            os << "]";
+        },
+
         [&os](const auto& v) { os << v; }
     }, val.m_data);
-    os << '\n';
+    os << std::noboolalpha;
+
     return os;
 }
 
@@ -137,7 +149,7 @@ std::string Value::asStr() const {
         },
 
         [](std::shared_ptr<ArrayType>) -> std::string {
-            throw std::runtime_error("Cannot convert array to string")
+            throw std::runtime_error("Cannot convert array to string");
         },
 
         [](std::string val) { return val; },
@@ -156,7 +168,7 @@ std::string Value::asStr() const {
 Value Value::castValue(BaseType type) const {
     if (const auto* arr = std::get_if<std::shared_ptr<ArrayType>>(&m_data)) {
         auto newArr = std::make_shared<ArrayType>();
-        for (const auto val& : **arr) {
+        for (const auto& val : **arr) {
             newArr->push_back(val.castValue(type));
         }
         return Value(std::move(newArr));
@@ -177,3 +189,24 @@ Value Value::castValue(BaseType type) const {
     }
 }
 
+int Value::getDepth() const {
+    if (auto* arrPtr = std::get_if<std::shared_ptr<ArrayType>>(&m_data)) {
+        const auto& arr = **arrPtr;
+        if (arr.empty())
+            return 1;
+
+        int expectedDepth{-1}; 
+        for (const auto& element: arr) {
+            int currentDepth = element.getDepth();
+
+            if (expectedDepth == -1)
+                expectedDepth = currentDepth;
+            else if (expectedDepth != currentDepth)
+                throw std::runtime_error("Array nesting has to be consistent");
+        }
+
+        return expectedDepth + 1;
+    }
+    else
+        return 0;
+}
