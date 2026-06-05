@@ -48,11 +48,13 @@ public:
 
     Value operator[](const Value& other) const;
     Value concatenate(const Value& other) const;
+    Value split(const Value& other) const;
 
     friend std::ostream& operator<<(std::ostream& os, const Value& val);
 
     Value castValue(BaseType type) const;
     int getDepth() const;
+    int getIndex() const;
 
 private:
     Type m_data;

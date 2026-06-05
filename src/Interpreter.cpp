@@ -114,6 +114,8 @@ void Interpreter::visit(const ConjunExpr& node) {
 }
 
 void Interpreter::visit(const SplitExpr& node) {
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    lastResult = leftVal.split(rightVal);
 }
 
 void Interpreter::visit(const AppendExpr& node) {

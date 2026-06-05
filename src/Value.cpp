@@ -369,12 +369,16 @@ Value Value::logicalNot() const {
     return Value(!this->asBool()); 
 }
 
-Value Value::operator[](const Value& other) const {
-    auto* idxPtr = std::get_if<int>(&other.m_data);
+int Value::getIndex() const {
+    auto* idxPtr = std::get_if<int>(&m_data);
     if (!idxPtr)
         throw std::runtime_error("Indexes have to be of type int");
 
-    const int idx = *idxPtr;
+    return *idxPtr;
+}
+
+Value Value::operator[](const Value& other) const {
+    int idx = other.getIndex();
 
     return std::visit(overloaded{
         [idx](const std::shared_ptr<ArrayType>& arr) -> Value {
@@ -425,4 +429,38 @@ Value Value::concatenate(const Value& other) const {
             throw std::runtime_error("You can only concatenate arrays or strings");
         }
     }, this->m_data, other.m_data);
+}
+
+
+
+Value Value::split(const Value& other) const {
+    int idx = other.getIndex();
+
+    return std::visit(overloaded{
+        [idx](const std::shared_ptr<ArrayType>& arr) {
+            if (idx >= arr->size())
+                throw std::runtime_error("Index is out of range");
+                
+            auto tail = std::make_shared<ArrayType>(
+                    arr->begin() + idx, arr->end()
+                    );
+
+            return Value(std::move(tail)); 
+        },
+
+        [idx](const std::string& str) {
+            if (idx >= str.size())
+                throw std::runtime_error("Index is out of range");
+
+            auto tail = std::string(
+                    str.begin() + idx, str.end()
+                    );
+            return Value(std::move(tail));
+        },
+
+        [](auto&&) -> Value {
+            throw std::runtime_error("You can only split arrays or strings");
+        }
+
+    }, this->m_data);
 }
