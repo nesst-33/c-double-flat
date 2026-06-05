@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <format>
 
+
 // ENTRYPOINT
 void Interpreter::visit(const Program& node) {
     for (const auto& statement : node.getStatements())
@@ -49,58 +50,33 @@ void Interpreter::visit(const ArrayLit& node) {
 // EXPRESSIONS
 // Numeric
 void Interpreter::visit(const AddExpr& node) {
-    node.getLeftFactor()->accept(*this);
-    Value leftVal = lastResult;
-    node.getRightFactor()->accept(*this);
-    Value rightVal = lastResult;
-
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
     lastResult = std::move(leftVal + rightVal);
 }
 
 void Interpreter::visit(const SubExpr& node) {
-    node.getLeftFactor()->accept(*this);
-    Value leftVal = lastResult;
-    node.getRightFactor()->accept(*this);
-    Value rightVal = lastResult;
-
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
     lastResult = std::move(leftVal - rightVal);
 }
 
 void Interpreter::visit(const MultExpr& node) {
-    node.getLeftFactor()->accept(*this);
-    Value leftVal = lastResult;
-    node.getRightFactor()->accept(*this);
-    Value rightVal = lastResult;
-
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
     lastResult = std::move(leftVal * rightVal);
 }
 
 void Interpreter::visit(const DivExpr& node) {
-    node.getLeftFactor()->accept(*this);
-    Value leftVal = lastResult;
-    node.getRightFactor()->accept(*this);
-    Value rightVal = lastResult;
-
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
     lastResult = std::move(leftVal / rightVal);
 }
 
 void Interpreter::visit(const ModExpr& node) {
-    node.getLeftFactor()->accept(*this);
-    Value leftVal = lastResult;
-    node.getRightFactor()->accept(*this);
-    Value rightVal = lastResult;
-
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
     lastResult = std::move(leftVal % rightVal);
 }
 
 void Interpreter::visit(const AsExpr& node) {
     node.getCastedExpr()->accept(*this);
     lastResult = std::move(lastResult.castValue(node.getType()));
-}
-
-void Interpreter::visit(const CardinalityExpr& node) {
-    node.getFactor()->accept(*this);
-    lastResult = std::move(lastResult.getCardinality());
 }
 
 void Interpreter::visit(const PositiveExpr& node) {
@@ -110,6 +86,12 @@ void Interpreter::visit(const PositiveExpr& node) {
 void Interpreter::visit(const NegativeExpr& node) {
     node.getFactor()->accept(*this);
     lastResult = std::move(lastResult.negateNum());
+}
+
+// Arrays + strings
+void Interpreter::visit(const CardinalityExpr& node) {
+    node.getFactor()->accept(*this);
+    lastResult = std::move(lastResult.getCardinality());
 }
 
 void Interpreter::visit(const ArrayExpr& node) {
@@ -130,45 +112,62 @@ void Interpreter::visit(const AppendExpr& node) {
 void Interpreter::visit(const ExtractExpr& node) {
 }
 
+// Relational
+
+// Inequality operators
+//
+// You cannot compare booleans or arrays (it makes no logical sense)
+// For strings, classic string comparison will be used
+// Numbers will be implicitly casted (also true for strings that represent numbers)
 void Interpreter::visit(const LessExpr& node) {
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    lastResult = leftVal < rightVal;
 }
 
 void Interpreter::visit(const GreatExpr& node) {
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    lastResult = leftVal > rightVal;
 }
 
 void Interpreter::visit(const LessEqExpr& node) {
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    lastResult = leftVal <= rightVal;
 }
 
 void Interpreter::visit(const GreatEqExpr& node) {
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    lastResult = leftVal >= rightVal;
 }
 
+// Equality operators
+//
+// All of the rules above are true, plus:
+// - Arrays will be (deeply) compared element by element 
+// - If comparing against a boolean, the other value will be implicitly casted to bool
 void Interpreter::visit(const EqExpr& node) {
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    lastResult = leftVal == rightVal;
 }
 
 void Interpreter::visit(const NotEqExpr& node) {
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    lastResult = leftVal != rightVal;
 }
 
+// Logical
 void Interpreter::visit(const NotExpr& node) {
     node.getFactor()->accept(*this);
     lastResult = std::move(lastResult.logicalNot());
 }
 
 void Interpreter::visit(const AndExpr& node) {
-    node.getLeftFactor()->accept(*this);
-    Value leftFactor = lastResult;
-    node.getRightFactor()->accept(*this);
-    Value rightFactor = lastResult;
-    
-    lastResult = std::move(leftFactor.logicalAnd(rightFactor));
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);   
+    lastResult = std::move(leftVal.logicalAnd(rightVal));
 }
 
 void Interpreter::visit(const OrExpr& node) {
-    node.getLeftFactor()->accept(*this);
-    Value leftFactor = lastResult;
-    node.getRightFactor()->accept(*this);
-    Value rightFactor = lastResult;
-
-    lastResult = std::move(leftFactor.logicalOr(rightFactor));
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);   
+    lastResult = std::move(leftVal.logicalOr(rightVal));
 }
 
 

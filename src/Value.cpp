@@ -1,6 +1,7 @@
 #include "Value.h"
 #include <algorithm>
 #include <ios>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <cmath>
@@ -92,6 +93,119 @@ Value Value::operator%(const Value& other) const {
     }, leftNum, rightNum);
 }
 
+Value Value::areEqualArrays(const std::shared_ptr<ArrayType>& left, 
+        const std::shared_ptr<ArrayType>& right) {
+    if (left->size() != right->size())
+        return Value(false);
+
+    for (size_t i{}; i < left->size(); i++) {
+        const auto& leftArrElement = left->at(i);
+        const auto& rightArrElement = right->at(i);
+
+        if ( !areEqualType(leftArrElement, rightArrElement) )
+            return Value(false);
+
+        if ( auto* leftNestedArrPtr = std::get_if<std::shared_ptr<ArrayType>>(&leftArrElement.m_data) ) {
+            const auto& rightNestedArr = std::get<std::shared_ptr<ArrayType>>(rightArrElement.m_data);
+
+            Value areArrsEqual = areEqualArrays(*leftNestedArrPtr, rightNestedArr);
+
+            if (!std::get<bool>(areArrsEqual.m_data))
+                return areArrsEqual;
+        }
+        else {
+            Value arePrimitivesEqual = (leftArrElement == rightArrElement);
+            if (!std::get<bool>(arePrimitivesEqual.m_data))
+                return arePrimitivesEqual;
+        }
+    }
+    return Value(true);
+}
+
+Value Value::areEqualBool(const Value& left, const Value& right) {
+    bool leftVal = left.asBool();
+    bool rightVal = right.asBool();
+    return Value(leftVal == rightVal);
+}
+
+template <typename CompareOp>
+Value Value::compareStrOrNum(const Value& left, const Value& right, CompareOp op) {
+    if (auto* strL = std::get_if<std::string>(&left.m_data)) {
+        if (auto* strR = std::get_if<std::string>(&right.m_data)) {
+            return Value(op(*strL, *strR));
+        }
+    }
+
+    auto leftNum = left.asNumber();
+    auto rightNum = right.asNumber();
+
+    return std::visit([op](auto&& l, auto&& r) {
+        return Value(op(l, r));
+    }, leftNum, rightNum);
+
+}
+
+template <typename CompareOp>
+Value Value::compareRelational(const Value& left, const Value& right, CompareOp op) {
+    if (std::holds_alternative<std::monostate>(left.m_data)
+            || std::holds_alternative<std::monostate>(right.m_data))
+        throw std::runtime_error("Cannot compare void");
+
+    if (std::holds_alternative<bool>(left.m_data)
+            || std::holds_alternative<bool>(right.m_data))
+        throw std::runtime_error("Cannot compare booleans");
+
+    if (std::holds_alternative<std::shared_ptr<ArrayType>>(left.m_data)
+            || std::holds_alternative<std::shared_ptr<ArrayType>>(right.m_data))
+        throw std::runtime_error("Cannot compare arrays");
+
+    return compareStrOrNum(left, right, op);
+}
+
+Value Value::compareEquality(const Value& left, const Value& right) {
+    if (std::holds_alternative<std::monostate>(left.m_data)
+            || std::holds_alternative<std::monostate>(right.m_data))
+        throw std::runtime_error("Cannot compare void");
+
+    if (auto* arrL = std::get_if<std::shared_ptr<ArrayType>>(&left.m_data)) {
+        if (auto* arrR = std::get_if<std::shared_ptr<ArrayType>>(&right.m_data)) {
+            return areEqualArrays(*arrL, *arrR);
+        }
+    }
+
+    if (std::holds_alternative<bool>(left.m_data)
+            || std::holds_alternative<bool>(right.m_data)) {
+        return areEqualBool(left, right); 
+    }
+
+    return compareStrOrNum(left, right, [](auto&& l, auto&& r) { return l == r; });
+}
+
+Value Value::operator<(const Value& other) const {
+    return compareRelational(*this, other, [](auto&& l, auto&& r) { return l < r; });
+}
+
+Value Value::operator>(const Value& other) const {
+    return compareRelational(*this, other, [](auto&& l, auto&& r) { return l > r; });
+}
+
+Value Value::operator<=(const Value& other) const {
+    return compareRelational(*this, other, [](auto&& l, auto&& r) { return l <= r; });
+}
+
+Value Value::operator>=(const Value& other) const {
+    return compareRelational(*this, other, [](auto&& l, auto&& r) { return l >= r; });
+}
+
+Value Value::operator==(const Value& other) const {
+    return compareEquality(*this, other);
+}
+
+Value Value::operator!=(const Value& other) const {
+    bool result = std::get<bool>(compareEquality(*this, other).m_data);
+    return Value(!result);
+}
+
 std::ostream& operator<<(std::ostream& os, const Value& val) {
     os << std::boolalpha;
     std::visit(overloaded{
@@ -132,6 +246,10 @@ bool Value::asBool() const {
         
         [](std::monostate) -> bool {
             throw std::runtime_error("Cannot convert void to boolean");
+        },
+
+        [](const std::shared_ptr<ArrayType>&) -> bool {
+            throw std::runtime_error("Cannot convert array to boolean");
         },
 
         [](bool val) { return val; },

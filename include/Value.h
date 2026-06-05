@@ -32,6 +32,13 @@ public:
     Value operator/(const Value& other) const;
     Value operator%(const Value& other) const;
 
+    Value operator<(const Value& other) const;
+    Value operator>(const Value& other) const;
+    Value operator<=(const Value& other) const;
+    Value operator>=(const Value& other) const;
+    Value operator==(const Value& other) const;
+    Value operator!=(const Value& other) const;
+
     Value getCardinality() const;
     Value negateNum() const;
 
@@ -51,6 +58,21 @@ private:
     double asFlp() const;
     bool asBool() const;
     std::string asStr() const;
+
+    template <typename CompareOp>
+    static Value compareStrOrNum(const Value& left, const Value& right, CompareOp op);
+
+    template <typename CompareOp>
+    static Value compareRelational(const Value& left, const Value& right, CompareOp op);
+
+    static Value compareEquality(const Value& left, const Value& right);
+
+    static Value areEqualArrays(const std::shared_ptr<ArrayType>& left, 
+            const std::shared_ptr<ArrayType>& right);
+    static Value areEqualBool(const Value& left, const Value& right);
+    static bool areEqualType(const Value& left, const Value& right) {
+        return left.m_data.index() == right.m_data.index();
+    }
 };
 
 #endif

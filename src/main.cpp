@@ -27,7 +27,7 @@ bool boolean = 4 / 2
 str double_quoted = "Testing escapes: \n \t \r \" \\ " 
 str single_quoted = 'Testing escapes: \n \t \r \' \\ '
 
-int testArr = 'asdfg'!
+bool testCompare = "3.5" == 3.5
 )";
 
     std::deque<Token> tokenized = lex(source);
@@ -44,7 +44,7 @@ int testArr = 'asdfg'!
     // std::cout << interpreter.m_env.get("boolean");
     // std::cout << interpreter.m_env.get("double_quoted");
     // std::cout << interpreter.m_env.get("single_quoted");
-    std::cout << interpreter.m_env.get("testArr") << "\n";
+    std::cout << interpreter.m_env.get("testCompare") << "\n";
 
     return 0;
 }
