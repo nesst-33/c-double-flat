@@ -88,7 +88,7 @@ void Interpreter::visit(const NegativeExpr& node) {
     lastResult = std::move(lastResult.negateNum());
 }
 
-// Arrays + strings
+// Array + string operators
 void Interpreter::visit(const CardinalityExpr& node) {
     node.getFactor()->accept(*this);
     lastResult = std::move(lastResult.getCardinality());
@@ -102,7 +102,12 @@ void Interpreter::visit(const ArrayExpr& node) {
     lastResult = leftVal[rightVal];
 }
 
+// You can only concatenate strings and arrays
+// Mixed types are disallowed
+// Concatenation creates a shallow copy (for performance reasons)
 void Interpreter::visit(const ConcatExpr& node) {
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    lastResult = leftVal.concatenate(rightVal);
 }
 
 void Interpreter::visit(const ConjunExpr& node) {

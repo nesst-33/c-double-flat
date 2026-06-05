@@ -47,6 +47,7 @@ public:
     Value logicalNot() const;
 
     Value operator[](const Value& other) const;
+    Value concatenate(const Value& other) const;
 
     friend std::ostream& operator<<(std::ostream& os, const Value& val);
 

@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <cmath>
 #include <string>
+#include <utility>
 #include <variant>
 
 namespace {
@@ -401,4 +402,27 @@ Value Value::operator[](const Value& other) const {
         } 
 
     }, this->m_data);
+}
+
+Value Value::concatenate(const Value& other) const {
+    return std::visit(overloaded{
+        [](const std::shared_ptr<ArrayType>& arrL,
+                const std::shared_ptr<ArrayType>& arrR) {
+            auto concatenated = std::make_shared<ArrayType>();
+            concatenated->reserve(arrL->size() + arrR->size());
+
+            concatenated->insert(concatenated->end(), arrL->begin(), arrL->end());
+            concatenated->insert(concatenated->end(), arrR->begin(), arrR->end());
+
+            return Value(std::move(concatenated));
+        },
+
+        [](const std::string& strL, const std::string& strR) {
+            return Value(strL + strR);
+        },
+
+        [](auto&&, auto&&) -> Value {
+            throw std::runtime_error("You can only concatenate arrays or strings");
+        }
+    }, this->m_data, other.m_data);
 }
