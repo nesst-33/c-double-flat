@@ -1,6 +1,7 @@
 #include "Interpreter.h"
 #include "Node.h"
 #include <algorithm>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <format>
@@ -55,11 +56,13 @@ void Interpreter::visit(const AddExpr& node) {
 }
 
 void Interpreter::visit(const SubExpr& node) {
+    // TODO: add array handling
     auto [leftVal, rightVal] = evaluateBinaryFactors(node);
     lastResult = std::move(leftVal - rightVal);
 }
 
 void Interpreter::visit(const MultExpr& node) {
+    // TODO: add array handling
     auto [leftVal, rightVal] = evaluateBinaryFactors(node);
     lastResult = std::move(leftVal * rightVal);
 }
@@ -111,6 +114,8 @@ void Interpreter::visit(const ConcatExpr& node) {
 }
 
 void Interpreter::visit(const ConjunExpr& node) {
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    lastResult = leftVal.intersection(rightVal);
 }
 
 void Interpreter::visit(const SplitExpr& node) {
@@ -118,10 +123,14 @@ void Interpreter::visit(const SplitExpr& node) {
     lastResult = leftVal.split(rightVal);
 }
 
+// Appending happens by shallow copy
 void Interpreter::visit(const AppendExpr& node) {
+    // TODO: finish
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
 }
 
 void Interpreter::visit(const ExtractExpr& node) {
+    // TODO: implement
 }
 
 // Relational

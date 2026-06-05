@@ -405,7 +405,7 @@ Value Value::operator[](const Value& other) const {
             throw std::runtime_error("This type cannot be indexed");
         } 
 
-    }, this->m_data);
+    }, m_data);
 }
 
 Value Value::concatenate(const Value& other) const {
@@ -428,7 +428,7 @@ Value Value::concatenate(const Value& other) const {
         [](auto&&, auto&&) -> Value {
             throw std::runtime_error("You can only concatenate arrays or strings");
         }
-    }, this->m_data, other.m_data);
+    }, m_data, other.m_data);
 }
 
 
@@ -462,5 +462,67 @@ Value Value::split(const Value& other) const {
             throw std::runtime_error("You can only split arrays or strings");
         }
 
-    }, this->m_data);
+    }, m_data);
+}
+
+Value Value::intersection(const Value& other) const {
+    return std::visit(overloaded{
+        [](const std::string& left, std::string right) {
+            std::string result;
+            for (char letter : left) {
+                auto letterIdx = right.find(letter);
+                if (letterIdx != std::string::npos) {
+                    result.push_back(letter); 
+                    right.erase(letterIdx, 1);
+                }
+            }
+            
+            return Value(std::move(result));
+        },
+
+        [](const std::shared_ptr<ArrayType>& left, 
+                const std::shared_ptr<ArrayType>& r) {
+            auto right = *r;
+            auto result = std::make_shared<ArrayType>();
+            result->reserve(left->size());
+
+            for (const auto& element : *left) {
+                auto it = std::find_if(right.begin(), right.end(), 
+                        [&element](const Value& rightElem) {
+                        return std::get<bool>((element == rightElem).m_data);
+                });
+
+                if (it != right.end()) {
+                    result->push_back(element);
+                    right.erase(it);
+                }
+                
+            }
+            result->shrink_to_fit();
+
+            return Value(std::move(result));
+        },
+
+        [](auto&&, auto&&) -> Value {
+            throw std::runtime_error("Intersection only works on arrays or strings");
+        }
+
+    }, m_data, other.m_data);
+}
+
+void Value::append(const Value& other) {
+    std::visit(overloaded{
+        [&other](std::shared_ptr<ArrayType>& arr) {
+            arr->push_back(other);
+        },
+
+        [&other](std::string& str) {
+            str += other.asStr();
+        },
+
+        [](auto&&) {
+            throw std::runtime_error("You can only append to arrays or strings");
+        }
+
+    }, m_data);
 }

@@ -49,6 +49,9 @@ public:
     Value operator[](const Value& other) const;
     Value concatenate(const Value& other) const;
     Value split(const Value& other) const;
+    Value intersection(const Value& other) const;
+
+    void append(const Value& other);
 
     friend std::ostream& operator<<(std::ostream& os, const Value& val);
 
@@ -78,6 +81,7 @@ private:
     static bool areEqualType(const Value& left, const Value& right) {
         return left.m_data.index() == right.m_data.index();
     }
+    
 };
 
 #endif
