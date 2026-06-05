@@ -27,7 +27,7 @@ bool boolean = 4 / 2
 str double_quoted = "Testing escapes: \n \t \r \" \\ " 
 str single_quoted = 'Testing escapes: \n \t \r \' \\ '
 
-bool testCompare = "3.5" == 3.5
+str char = [1, 3, 4][4.3]
 )";
 
     std::deque<Token> tokenized = lex(source);
@@ -39,12 +39,7 @@ bool testCompare = "3.5" == 3.5
 
     Program program = parser.parse();    
     interpreter.visit(program);
-    // std::cout << interpreter.m_env.get("PI");
-    // std::cout << interpreter.m_env.get("DOT_FIRST");
-    // std::cout << interpreter.m_env.get("boolean");
-    // std::cout << interpreter.m_env.get("double_quoted");
-    // std::cout << interpreter.m_env.get("single_quoted");
-    std::cout << interpreter.m_env.get("testCompare") << "\n";
+    std::cout << interpreter.m_env.get("char") << "\n";
 
     return 0;
 }

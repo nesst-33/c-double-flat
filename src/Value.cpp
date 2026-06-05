@@ -367,3 +367,38 @@ Value Value::logicalOr(const Value& other) const {
 Value Value::logicalNot() const {
     return Value(!this->asBool()); 
 }
+
+Value Value::operator[](const Value& other) const {
+    auto* idxPtr = std::get_if<int>(&other.m_data);
+    if (!idxPtr)
+        throw std::runtime_error("Indexes have to be of type int");
+
+    const int idx = *idxPtr;
+
+    return std::visit(overloaded{
+        [idx](const std::shared_ptr<ArrayType>& arr) -> Value {
+            try {
+                return arr->at(idx);
+            } catch (const std::out_of_range& e) {
+                throw std::runtime_error("Index is out of range");
+            }
+        },
+
+        [idx](const std::string& str) -> Value {
+            try {
+                char letter = str.at(idx);
+                return Value(std::string(1, letter));
+            } catch (const std::out_of_range& e) {
+                throw std::runtime_error("Index is out of range");
+            }
+        },
+
+        [idx](int num) -> Value { return Value(std::to_string(num))[Value(idx)]; },
+        [idx](double num) -> Value { return Value(std::to_string(num))[Value(idx)]; },
+
+        [](auto&&) -> Value {
+            throw std::runtime_error("This type cannot be indexed");
+        } 
+
+    }, this->m_data);
+}

@@ -94,7 +94,12 @@ void Interpreter::visit(const CardinalityExpr& node) {
     lastResult = std::move(lastResult.getCardinality());
 }
 
+// Indexes have to be of type int
+// Only arrays or strings can be indexed
+// Numbers will be implicitly casted to strings
 void Interpreter::visit(const ArrayExpr& node) {
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    lastResult = leftVal[rightVal];
 }
 
 void Interpreter::visit(const ConcatExpr& node) {

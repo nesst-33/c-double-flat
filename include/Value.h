@@ -46,6 +46,8 @@ public:
     Value logicalOr(const Value& other) const;
     Value logicalNot() const;
 
+    Value operator[](const Value& other) const;
+
     friend std::ostream& operator<<(std::ostream& os, const Value& val);
 
     Value castValue(BaseType type) const;
