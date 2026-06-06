@@ -191,54 +191,74 @@ void Interpreter::visit(const OrExpr& node) {
     lastResult = std::move(leftVal.logicalOr(rightVal));
 }
 
+// Variable call
+void Interpreter::visit(const Identifier& node) {
+    lastResult = m_env.get(node.getName());
+}
+
+// Function call
+void Interpreter::visit(const FunCall& node) {
+}
+
 
 // STATEMENTS
 void Interpreter::visit(const VarDeclStmt& node) {
     Value val;
-
-    if (const auto& initializer = node.getInitializer()) {
-        initializer->accept(*this);
-        val = lastResult.castValue(node.getType().type);
-
-        int targetDepth = node.getType().arrayDepth;
-        int depth = val.getDepth(); 
-        if ( depth != targetDepth ) {
-            throw std::runtime_error(std::format("Array should be nested {} time(s); is nested {} time(s)",
-                    targetDepth, depth));
-        }
+    if ( const auto& init = node.getInitializer() ) {
+        init->accept(*this);
+        val = lastResult;
     }
-    else {
-        if ( !node.getType().arrayDepth )
-            throw std::runtime_error("Array variables have to be initialized on declaration");
-
-        switch(node.getType().type) {
-            case BaseType::INT:
-                val.setValue(0);
-                break;
-            case BaseType::FLP:
-                val.setValue(0.);
-                break;
-            case BaseType::BOOL:
-                val.setValue(false);
-                break;
-            case BaseType::STR:
-                val.setValue("");
-                break;
-            case BaseType::VOID:
-                throw std::runtime_error("Cannot declare void variables");
-        }
-    }
-    m_env.define(node.getType(), node.getName(), std::move(val));
-}
-
-
-void Interpreter::visit(const Identifier& node) {
-}
-
-void Interpreter::visit(const FunCall& node) {
+    m_env.define(node.getType(), node.getName(), val);
 }
 
 void Interpreter::visit(const BasicAssignStmt& node) {
+    Expression* lhs = node.getLhs().get(); 
+    const auto& rhs = node.getRhs();
+    rhs->accept(*this);
+    Value assignedVal = lastResult;
+
+    if (auto* idNode = dynamic_cast<Identifier*>(lhs)) {
+        m_env.assign(idNode->getName(), std::move(assignedVal)); 
+    }
+    else if (auto* indexNode = dynamic_cast<ArrayExpr*>(lhs)) {
+        ArrayExpr* leftFactor = indexNode;
+        ArrayExpr* parentNode = leftFactor;
+        while ((leftFactor = dynamic_cast<ArrayExpr*>(leftFactor->getLeftFactor().get()))) {
+            parentNode = leftFactor;
+        }
+
+        Identifier* idNode = dynamic_cast<Identifier*>(parentNode->getLeftFactor().get());
+        if (!idNode) {
+            // THIS SHOULD NEVER RUN (technically the parser shouldn't allow it to happen)
+            throw std::runtime_error("Assigned array has no identifier");
+        }
+
+        const std::string& name = idNode->getName();
+        TypeInfo arrTypeInfo = m_env.getTypeInfo(name);
+
+        if (arrTypeInfo.isConst) 
+            throw std::runtime_error("Variable '" + name + "' is immutable");
+        
+        auto [leftVal, rightVal] = evaluateBinaryFactors(*indexNode); 
+
+        int targetDepth = leftVal.getDepth() - 1;
+        int depth = assignedVal.getDepth();
+        if ( depth != targetDepth ) {
+            throw std::runtime_error(std::format("Array should be nested {} time(s); is nested {} time(s)",
+                targetDepth, depth));
+        }
+
+        auto arrPtr = std::get<std::shared_ptr<Value::ArrayType>>(leftVal.getValue());
+        int idx = rightVal.getIndex();
+
+        try {
+            arrPtr->at(idx) = assignedVal.castValue(arrTypeInfo.type);
+        } catch (const std::out_of_range& e) {
+            throw std::runtime_error("Index is out of range");
+        }
+    }
+    else
+        throw std::runtime_error("Invalid assignment target");
 }
 
 void Interpreter::visit(const AddAssignStmt& node) {

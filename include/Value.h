@@ -81,6 +81,9 @@ private:
     static bool areEqualType(const Value& left, const Value& right) {
         return left.m_data.index() == right.m_data.index();
     }
+
+    bool requiresCasting(BaseType type) const;
+    BaseType getBaseType() const;
     
 };
 

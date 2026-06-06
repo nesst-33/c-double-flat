@@ -4,7 +4,6 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
-#include <iostream>
 #include "Value.h"
 #include "Node.h"
 
@@ -15,22 +14,14 @@ struct VarInfo {
 
 class Environment {
 public:
-    void define(TypeInfo type, std::string name, Value value) {
-        // redefinition is allowed because it's better for a REPL
-        values[name] = VarInfo{type, std::move(value)};
-    }
-
-    Value get(const std::string& name) {
-        try {
-            return values.at(name).value;
-        }
-        catch (std::out_of_range& e) {
-            throw std::runtime_error("Undefined variable: '" + name + "'");
-        }
-    }
-
+    void define(TypeInfo type, std::string name, Value value);
+    void assign(const std::string& name, Value val);
+    Value get(const std::string& name) const;
+    TypeInfo getTypeInfo(const std::string& name) const;
 
 private:
+    static Value defaultInitialize(TypeInfo typeInfo);
+    static Value matchType(Value value, TypeInfo typeInfo);
     std::unordered_map<std::string, VarInfo> values{};
 };
 

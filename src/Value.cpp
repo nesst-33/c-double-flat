@@ -284,13 +284,43 @@ std::string Value::asStr() const {
     }, m_data);
 }
 
-Value Value::castValue(BaseType type) const {
+BaseType Value::getBaseType() const {
+    return std::visit(overloaded{
+        [](const std::string&) { return BaseType::STR; },
+        [](int) { return BaseType::INT; },
+        [](double) { return BaseType::FLP; },
+        [](bool) { return BaseType::BOOL; },
+        [](auto&&) -> BaseType {
+            throw std::runtime_error("Value is not a primitive");
+        }
+    }, m_data);
+}
+    
+bool Value::requiresCasting(BaseType type) const {
+    // This method is for checking if we actually need to create a casted deep copy
     if (const auto* arr = std::get_if<std::shared_ptr<ArrayType>>(&m_data)) {
+        for (const auto& val : **arr) {
+            if (val.requiresCasting(type))
+                return true;
+        }
+        return false;
+    } 
+
+    return this->getBaseType() != type;
+}
+
+Value Value::castValue(BaseType type) const {
+    if (!this->requiresCasting(type))
+        return *this;
+
+    if (const auto* arr = std::get_if<std::shared_ptr<ArrayType>>(&m_data)) {
+
         auto newArr = std::make_shared<ArrayType>();
         for (const auto& val : **arr) {
             newArr->push_back(val.castValue(type));
         }
         return Value(std::move(newArr));
+
     }
     else {
         switch(type) {

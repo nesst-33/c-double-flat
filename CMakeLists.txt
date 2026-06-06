@@ -9,7 +9,7 @@ include_directories(include)
 
 add_library(LexerLib src/Lexer.cpp)
 add_library(ParserLib src/Parser.cpp src/Node.cpp src/ASTPrinter.cpp)
-add_library(InterpreterLib src/Value.cpp src/Interpreter.cpp)
+add_library(InterpreterLib src/Value.cpp src/Interpreter.cpp src/Environment.cpp)
 
 add_executable(compiler src/main.cpp)
 target_link_libraries(compiler PRIVATE LexerLib ParserLib InterpreterLib)
