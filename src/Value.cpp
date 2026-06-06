@@ -314,13 +314,11 @@ Value Value::castValue(BaseType type) const {
         return *this;
 
     if (const auto* arr = std::get_if<std::shared_ptr<ArrayType>>(&m_data)) {
-
         auto newArr = std::make_shared<ArrayType>();
         for (const auto& val : **arr) {
             newArr->push_back(val.castValue(type));
         }
         return Value(std::move(newArr));
-
     }
     else {
         switch(type) {
@@ -555,4 +553,18 @@ void Value::append(const Value& other) {
         }
 
     }, m_data);
+}
+
+void Value::modifyString(int idx, char character) {
+
+    if (auto* strPtr = std::get_if<std::string>(&m_data)) {
+        try {
+            strPtr->at(idx) = character;
+        } catch (const std::out_of_range& e) {
+            throw std::runtime_error(std::format("Index is out of range (string has length {})", 
+                        strPtr->size()));
+        }
+    }
+    else
+        throw std::runtime_error("Value is not a string");
 }

@@ -62,6 +62,26 @@ void Environment::assign(const std::string& name, Value val) {
     }
 }
 
+void Environment::assignString(const std::string& name, int idx, Value charVal) {
+    charVal = charVal.castValue(BaseType::STR);
+    std::string character = std::get<std::string>(charVal.getValue());
+    try {
+        TypeInfo typeInfo = values.at(name).type;
+        if (typeInfo.isConst) 
+            throw std::runtime_error("Variable '" + name + "' is immutable");
+        if (typeInfo.type != BaseType::STR)
+            throw std::runtime_error("Variable '" + name + "' is not a string");
+        if (character.size() != 1)
+            throw std::runtime_error("You can only assign single characters to a string");
+        
+        values.at(name).value.modifyString(idx, character[0]);
+    }
+    catch (const std::out_of_range& e) {
+        throw std::runtime_error("Undefined variable: '" + name + "'");
+    }
+
+}
+
 Value Environment::get(const std::string& name) const {
     try {
         return values.at(name).value;

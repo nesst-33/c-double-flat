@@ -27,9 +27,10 @@ bool boolean = 4 / 2
 str double_quoted = "Testing escapes: \n \t \r \" \\ " 
 str single_quoted = 'Testing escapes: \n \t \r \' \\ '
 
-arr int a = [1, "2.5"]
-arr arr int b = [a, [3, "4"]]
-b[0][0] = "2.5"
+str b = "asdf"
+b[2] = 4
+
+
 )";
 
     std::deque<Token> tokenized = lex(source);
@@ -41,7 +42,7 @@ b[0][0] = "2.5"
 
     Program program = parser.parse();    
     interpreter.visit(program);
-    std::cout << interpreter.m_env.get("a") << "\n";
+    std::cout << interpreter.m_env.get("b") << "\n";
 
     return 0;
 }

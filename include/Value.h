@@ -59,6 +59,8 @@ public:
     int getDepth() const;
     int getIndex() const;
 
+    void modifyString(int idx, char character);
+
 private:
     Type m_data;
 

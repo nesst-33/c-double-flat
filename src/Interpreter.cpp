@@ -240,21 +240,31 @@ void Interpreter::visit(const BasicAssignStmt& node) {
             throw std::runtime_error("Variable '" + name + "' is immutable");
         
         auto [leftVal, rightVal] = evaluateBinaryFactors(*indexNode); 
-
-        int targetDepth = leftVal.getDepth() - 1;
-        int depth = assignedVal.getDepth();
-        if ( depth != targetDepth ) {
-            throw std::runtime_error(std::format("Array should be nested {} time(s); is nested {} time(s)",
-                targetDepth, depth));
-        }
-
-        auto arrPtr = std::get<std::shared_ptr<Value::ArrayType>>(leftVal.getValue());
         int idx = rightVal.getIndex();
 
-        try {
-            arrPtr->at(idx) = assignedVal.castValue(arrTypeInfo.type);
-        } catch (const std::out_of_range& e) {
-            throw std::runtime_error("Index is out of range");
+        if (arrTypeInfo.type == BaseType::STR && arrTypeInfo.arrayDepth == 0) {
+            m_env.assignString(name, idx, assignedVal);
+        }
+        else {
+            int targetDepth = leftVal.getDepth() - 1;
+            int depth = assignedVal.getDepth();
+            if ( targetDepth <= 0 ) {
+                throw std::runtime_error("Variable '" + name + "' was indexed too many times; max depth is "
+                        + std::to_string(arrTypeInfo.arrayDepth));
+            }
+
+            if ( depth != targetDepth ) {
+                throw std::runtime_error(std::format("Array should be nested {} time(s); is nested {} time(s)",
+                    targetDepth, depth));
+            }
+
+            auto arrPtr = std::get<std::shared_ptr<Value::ArrayType>>(leftVal.getValue());
+
+            try {
+                arrPtr->at(idx) = assignedVal.castValue(arrTypeInfo.type);
+            } catch (const std::out_of_range& e) {
+                throw std::runtime_error("Index is out of range");
+            }
         }
     }
     else
