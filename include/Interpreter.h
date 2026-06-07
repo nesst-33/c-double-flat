@@ -30,6 +30,11 @@ private:
 
     Identifier* getIdNodePtr(ArrayExpr* arrIndexExprPtr);
     void executeAssignment(Expression* lhs, Value assignedVal);
+
+    using assignmentOp = Value (*)(const Value&, const Value&);
+    template <typename NodeType>
+    void executeOpAssignment(const NodeType& node, assignmentOp op);
+    
 };
 
 #endif

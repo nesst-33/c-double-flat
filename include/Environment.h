@@ -1,7 +1,6 @@
 #ifndef _ENV_H
 #define _ENV_H
 
-#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include "Value.h"

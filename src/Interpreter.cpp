@@ -244,23 +244,42 @@ void Interpreter::visit(const BasicAssignStmt& node) {
     executeAssignment(lhs, assignedVal);
 }
 
+template <typename NodeType>
+void Interpreter::executeOpAssignment(const NodeType& node, assignmentOp op) {
+    Expression* lhs = node.getLhs().get();
+
+    lhs->accept(*this);
+    Value currentVal = std::move(lastResult);
+
+    node.getRhs()->accept(*this);
+    Value modifierVal = std::move(lastResult);
+
+    Value computedVal = op(currentVal, modifierVal);
+    executeAssignment(lhs, std::move(computedVal));
+}
+
 void Interpreter::visit(const AddAssignStmt& node) {
-      
+    executeOpAssignment(node, [](const Value& l, const Value& r) { return l + r; });
 }
 
 void Interpreter::visit(const SubAssignStmt& node) {
+    executeOpAssignment(node, [](const Value& l, const Value& r) { return l - r; });
 }
 
 void Interpreter::visit(const MultAssignStmt& node) {
+    executeOpAssignment(node, [](const Value& l, const Value& r) { return l * r; });
 }
 
 void Interpreter::visit(const DivAssignStmt& node) {
+    executeOpAssignment(node, [](const Value& l, const Value& r) { return l / r; });
 }
 
 void Interpreter::visit(const ModAssignStmt& node) {
+    executeOpAssignment(node, [](const Value& l, const Value& r) { return l % r; });
 }
 
 void Interpreter::visit(const ConcatAssignStmt& node) {
+    executeOpAssignment(node, [](const Value& l, const Value& r) { return l.concatenate(r); });
 }
 
 void Interpreter::visit(const RetStmt& node) {

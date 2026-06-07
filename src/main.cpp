@@ -20,8 +20,8 @@ std::deque<Token> lex(std::string_view source) {
 int main()
 {
     std::string source = R"(
-arr arr str a = [['as', 'df'], ['bs', "asdfha"]]
-a[0] = [2137]
+int a
+a /= "73.5"
 )";
 
     std::deque<Token> tokenized = lex(source);
