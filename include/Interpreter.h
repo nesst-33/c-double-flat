@@ -22,11 +22,14 @@ private:
     template <typename NodeType>
     std::pair<Value, Value> evaluateBinaryFactors(const NodeType& node) {
         node.getLeftFactor()->accept(*this);
-        Value leftVal = lastResult;
+        Value leftVal = std::move(lastResult);
         node.getRightFactor()->accept(*this);
-        Value rightVal = lastResult;
+        Value rightVal = std::move(lastResult);
         return {std::move(leftVal), std::move(rightVal)};
     }
+
+    Identifier* getIdNodePtr(ArrayExpr* arrIndexExprPtr);
+    void executeAssignment(Expression* lhs, Value assignedVal);
 };
 
 #endif

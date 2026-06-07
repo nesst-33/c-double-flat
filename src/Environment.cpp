@@ -48,33 +48,6 @@ void Environment::define(TypeInfo typeInfo, std::string name, Value value) {
     values[name] = VarInfo{typeInfo, std::move(value)};
 }
 
-// void Environment::assign(Expression* lValuePtr, Value assignedVal) {
-// }
-
-void Environment::assignAtIdx(TypeInfo arrTypeInfo, Value lValArray, int idx, 
-        Value assignedVal) {
-
-    int targetDepth = lValArray.getDepth() - 1;
-    int depth = assignedVal.getDepth();
-    if ( targetDepth <= 0 ) {
-        throw std::runtime_error("Array was indexed too many times; max depth is "
-                + std::to_string(arrTypeInfo.arrayDepth));
-    }
-
-    if ( depth != targetDepth ) {
-        throw std::runtime_error(std::format("Array should be nested {} time(s); is nested {} time(s)",
-            targetDepth, depth));
-    }
-
-    auto arrPtr = std::get<std::shared_ptr<Value::ArrayType>>(lValArray.getValue());
-
-    try {
-        arrPtr->at(idx) = assignedVal.castValue(arrTypeInfo.type);
-    } catch (const std::out_of_range& e) {
-        throw std::runtime_error("Index is out of range");
-    }
-}
-
 void Environment::assignIdentifier(const std::string& name, Value val) {
     TypeInfo typeInfo = values.at(name).type;
     if (typeInfo.isConst)
@@ -107,12 +80,27 @@ void Environment::assignString(const std::string& name, int idx, Value charVal) 
 
 }
 
-Value Environment::get(const std::string& name) const {
-    try {
-        return values.at(name).value;
+void Environment::assignArray(TypeInfo arrTypeInfo, Value lValArray, int idx, 
+        Value assignedVal) {
+
+    int targetDepth = lValArray.getDepth() - 1;
+    int depth = assignedVal.getDepth();
+    if ( targetDepth <= 0 ) {
+        throw std::runtime_error("Array was indexed too many times; max depth is "
+                + std::to_string(arrTypeInfo.arrayDepth));
     }
-    catch (const std::out_of_range& e) {
-        throw std::runtime_error("Undefined variable: '" + name + "'");
+
+    if ( depth != targetDepth ) {
+        throw std::runtime_error(std::format("Array should be nested {} time(s); is nested {} time(s)",
+            targetDepth, depth));
+    }
+
+    auto arrPtr = std::get<std::shared_ptr<Value::ArrayType>>(lValArray.getValue());
+
+    try {
+        arrPtr->at(idx) = assignedVal.castValue(arrTypeInfo.type);
+    } catch (const std::out_of_range& e) {
+        throw std::runtime_error("Index is out of range");
     }
 }
 
@@ -124,3 +112,29 @@ TypeInfo Environment::getTypeInfo(const std::string& name) const {
         throw std::runtime_error("Undefined variable: '" + name + "'");
     }
 }
+
+void Environment::assignArrayOrStr(Value lValArray, Value idxVal, Value assignedVal, Identifier* idNode) {
+    const std::string& name = idNode->getName();
+    TypeInfo arrTypeInfo = getTypeInfo(name);
+
+    if (arrTypeInfo.isConst) 
+        throw std::runtime_error("Variable '" + name + "' is immutable");
+    
+    int idx = idxVal.getIndex();
+
+    if (arrTypeInfo.arrayDepth == 0) 
+        assignString(name, idx, assignedVal);
+    else 
+        assignArray(arrTypeInfo, lValArray, idx, assignedVal);
+}
+
+
+Value Environment::get(const std::string& name) const {
+    try {
+        return values.at(name).value;
+    }
+    catch (const std::out_of_range& e) {
+        throw std::runtime_error("Undefined variable: '" + name + "'");
+    }
+}
+

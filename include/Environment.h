@@ -16,14 +16,14 @@ class Environment {
 public:
     void define(TypeInfo type, std::string name, Value value);
     void assignIdentifier(const std::string& name, Value val);
-    void assignString(const std::string& name, int idx, Value charVal);
-    void assignAtIdx(TypeInfo arrTypeInfo, Value lValArray, int idx,
-            Value assignedVal);
-    // void assign(Expression* lValuePtr, Value assignedVal);
+    void assignArrayOrStr(Value lValArray, Value idxVal, Value assignedVal, Identifier* idNode);
     Value get(const std::string& name) const;
     TypeInfo getTypeInfo(const std::string& name) const;
 
 private:
+    void assignString(const std::string& name, int idx, Value charVal);
+    void assignArray(TypeInfo arrTypeInfo, Value lValArray, int idx,
+            Value assignedVal);
     static Value defaultInitialize(TypeInfo typeInfo);
     static Value matchType(Value value, TypeInfo typeInfo);
     std::unordered_map<std::string, VarInfo> values{};

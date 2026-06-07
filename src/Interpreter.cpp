@@ -211,7 +211,7 @@ void Interpreter::visit(const VarDeclStmt& node) {
     m_env.define(node.getType(), node.getName(), val);
 }
 
-Identifier* getIdNodePtr(ArrayExpr* arrIndexExprPtr) {
+Identifier* Interpreter::getIdNodePtr(ArrayExpr* arrIndexExprPtr) {
     ArrayExpr* leftFactor{arrIndexExprPtr};
     ArrayExpr* parentNode{arrIndexExprPtr};
     while ((leftFactor = dynamic_cast<ArrayExpr*>(leftFactor->getLeftFactor().get())))
@@ -221,39 +221,31 @@ Identifier* getIdNodePtr(ArrayExpr* arrIndexExprPtr) {
     return idNode;
 }
 
-void Interpreter::visit(const BasicAssignStmt& node) {
-    Expression* lhs = node.getLhs().get(); 
-    const auto& rhs = node.getRhs();
-    rhs->accept(*this);
-    Value assignedVal = lastResult;
-
+void Interpreter::executeAssignment(Expression* lhs, Value assignedVal) {
     if (auto* idNode = dynamic_cast<Identifier*>(lhs)) {
         m_env.assignIdentifier(idNode->getName(), std::move(assignedVal)); 
     }
     else if (auto* indexNode = dynamic_cast<ArrayExpr*>(lhs)) {
         auto [leftVal, rightVal] = evaluateBinaryFactors(*indexNode); 
-
         Identifier* idNode = getIdNodePtr(indexNode);
-
-        const std::string& name = idNode->getName();
-        TypeInfo arrTypeInfo = m_env.getTypeInfo(name);
-
-        if (arrTypeInfo.isConst) 
-            throw std::runtime_error("Variable '" + name + "' is immutable");
-        
-        int idx = rightVal.getIndex();
-
-        if (arrTypeInfo.arrayDepth == 0) 
-            m_env.assignString(name, idx, assignedVal);
-        else {
-            m_env.assignAtIdx(arrTypeInfo, leftVal, idx, assignedVal);
-        }
+        m_env.assignArrayOrStr(leftVal, rightVal, assignedVal, idNode);
     }
     else
         throw std::runtime_error("Invalid assignment target");
+    
+}
+
+void Interpreter::visit(const BasicAssignStmt& node) {
+    Expression* lhs = node.getLhs().get(); 
+    const auto& rhs = node.getRhs();
+    rhs->accept(*this);
+    Value assignedVal = std::move(lastResult);
+
+    executeAssignment(lhs, assignedVal);
 }
 
 void Interpreter::visit(const AddAssignStmt& node) {
+      
 }
 
 void Interpreter::visit(const SubAssignStmt& node) {
