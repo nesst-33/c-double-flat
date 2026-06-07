@@ -211,6 +211,16 @@ void Interpreter::visit(const VarDeclStmt& node) {
     m_env.define(node.getType(), node.getName(), val);
 }
 
+Identifier* getIdNodePtr(ArrayExpr* arrIndexExprPtr) {
+    ArrayExpr* leftFactor{arrIndexExprPtr};
+    ArrayExpr* parentNode{arrIndexExprPtr};
+    while ((leftFactor = dynamic_cast<ArrayExpr*>(leftFactor->getLeftFactor().get())))
+        parentNode = leftFactor;
+
+    Identifier* idNode = dynamic_cast<Identifier*>(parentNode->getLeftFactor().get());
+    return idNode;
+}
+
 void Interpreter::visit(const BasicAssignStmt& node) {
     Expression* lhs = node.getLhs().get(); 
     const auto& rhs = node.getRhs();
@@ -218,20 +228,12 @@ void Interpreter::visit(const BasicAssignStmt& node) {
     Value assignedVal = lastResult;
 
     if (auto* idNode = dynamic_cast<Identifier*>(lhs)) {
-        m_env.assign(idNode->getName(), std::move(assignedVal)); 
+        m_env.assignIdentifier(idNode->getName(), std::move(assignedVal)); 
     }
     else if (auto* indexNode = dynamic_cast<ArrayExpr*>(lhs)) {
-        ArrayExpr* leftFactor = indexNode;
-        ArrayExpr* parentNode = leftFactor;
-        while ((leftFactor = dynamic_cast<ArrayExpr*>(leftFactor->getLeftFactor().get()))) {
-            parentNode = leftFactor;
-        }
+        auto [leftVal, rightVal] = evaluateBinaryFactors(*indexNode); 
 
-        Identifier* idNode = dynamic_cast<Identifier*>(parentNode->getLeftFactor().get());
-        if (!idNode) {
-            // THIS SHOULD NEVER RUN (technically the parser shouldn't allow it to happen)
-            throw std::runtime_error("Assigned array has no identifier");
-        }
+        Identifier* idNode = getIdNodePtr(indexNode);
 
         const std::string& name = idNode->getName();
         TypeInfo arrTypeInfo = m_env.getTypeInfo(name);
@@ -239,32 +241,12 @@ void Interpreter::visit(const BasicAssignStmt& node) {
         if (arrTypeInfo.isConst) 
             throw std::runtime_error("Variable '" + name + "' is immutable");
         
-        auto [leftVal, rightVal] = evaluateBinaryFactors(*indexNode); 
         int idx = rightVal.getIndex();
 
-        if (arrTypeInfo.type == BaseType::STR && arrTypeInfo.arrayDepth == 0) {
+        if (arrTypeInfo.arrayDepth == 0) 
             m_env.assignString(name, idx, assignedVal);
-        }
         else {
-            int targetDepth = leftVal.getDepth() - 1;
-            int depth = assignedVal.getDepth();
-            if ( targetDepth <= 0 ) {
-                throw std::runtime_error("Variable '" + name + "' was indexed too many times; max depth is "
-                        + std::to_string(arrTypeInfo.arrayDepth));
-            }
-
-            if ( depth != targetDepth ) {
-                throw std::runtime_error(std::format("Array should be nested {} time(s); is nested {} time(s)",
-                    targetDepth, depth));
-            }
-
-            auto arrPtr = std::get<std::shared_ptr<Value::ArrayType>>(leftVal.getValue());
-
-            try {
-                arrPtr->at(idx) = assignedVal.castValue(arrTypeInfo.type);
-            } catch (const std::out_of_range& e) {
-                throw std::runtime_error("Index is out of range");
-            }
+            m_env.assignAtIdx(arrTypeInfo, leftVal, idx, assignedVal);
         }
     }
     else

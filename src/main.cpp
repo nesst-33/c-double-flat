@@ -20,17 +20,8 @@ std::deque<Token> lex(std::string_view source) {
 int main()
 {
     std::string source = R"(
-const flp PI = (3 + 2) * 2
-const flp DOT_FIRST = 3 % 1
-bool boolean = 4 / 2 
-
-str double_quoted = "Testing escapes: \n \t \r \" \\ " 
-str single_quoted = 'Testing escapes: \n \t \r \' \\ '
-
-str b = "asdf"
-b[2] = 4
-
-
+arr arr str a = [['as', 'df'], ['bs', "asdfha"]]
+a[0] = [2137]
 )";
 
     std::deque<Token> tokenized = lex(source);
@@ -42,7 +33,7 @@ b[2] = 4
 
     Program program = parser.parse();    
     interpreter.visit(program);
-    std::cout << interpreter.m_env.get("b") << "\n";
+    std::cout << interpreter.m_env.get("a") << "\n";
 
     return 0;
 }

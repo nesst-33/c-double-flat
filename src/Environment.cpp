@@ -48,13 +48,40 @@ void Environment::define(TypeInfo typeInfo, std::string name, Value value) {
     values[name] = VarInfo{typeInfo, std::move(value)};
 }
 
-void Environment::assign(const std::string& name, Value val) {
+// void Environment::assign(Expression* lValuePtr, Value assignedVal) {
+// }
+
+void Environment::assignAtIdx(TypeInfo arrTypeInfo, Value lValArray, int idx, 
+        Value assignedVal) {
+
+    int targetDepth = lValArray.getDepth() - 1;
+    int depth = assignedVal.getDepth();
+    if ( targetDepth <= 0 ) {
+        throw std::runtime_error("Array was indexed too many times; max depth is "
+                + std::to_string(arrTypeInfo.arrayDepth));
+    }
+
+    if ( depth != targetDepth ) {
+        throw std::runtime_error(std::format("Array should be nested {} time(s); is nested {} time(s)",
+            targetDepth, depth));
+    }
+
+    auto arrPtr = std::get<std::shared_ptr<Value::ArrayType>>(lValArray.getValue());
+
     try {
-        TypeInfo typeInfo = values.at(name).type;
-        if (typeInfo.isConst) {
-            throw std::runtime_error("Variable '" + name + "' is immutable");
-        }
-        
+        arrPtr->at(idx) = assignedVal.castValue(arrTypeInfo.type);
+    } catch (const std::out_of_range& e) {
+        throw std::runtime_error("Index is out of range");
+    }
+}
+
+void Environment::assignIdentifier(const std::string& name, Value val) {
+    TypeInfo typeInfo = values.at(name).type;
+    if (typeInfo.isConst)
+        throw std::runtime_error("Variable '" + name + "' is immutable");
+
+
+    try {
         values.at(name).value = std::move(matchType(val, typeInfo));
     }
     catch (const std::out_of_range& e) {
@@ -67,8 +94,6 @@ void Environment::assignString(const std::string& name, int idx, Value charVal) 
     std::string character = std::get<std::string>(charVal.getValue());
     try {
         TypeInfo typeInfo = values.at(name).type;
-        if (typeInfo.isConst) 
-            throw std::runtime_error("Variable '" + name + "' is immutable");
         if (typeInfo.type != BaseType::STR)
             throw std::runtime_error("Variable '" + name + "' is not a string");
         if (character.size() != 1)

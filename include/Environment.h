@@ -15,8 +15,11 @@ struct VarInfo {
 class Environment {
 public:
     void define(TypeInfo type, std::string name, Value value);
-    void assign(const std::string& name, Value val);
+    void assignIdentifier(const std::string& name, Value val);
     void assignString(const std::string& name, int idx, Value charVal);
+    void assignAtIdx(TypeInfo arrTypeInfo, Value lValArray, int idx,
+            Value assignedVal);
+    // void assign(Expression* lValuePtr, Value assignedVal);
     Value get(const std::string& name) const;
     TypeInfo getTypeInfo(const std::string& name) const;
 
