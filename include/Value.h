@@ -5,6 +5,7 @@
 #include <ostream>
 #include <string>
 #include <variant>
+#include "ICallable.h"
 #include "Node.h"
 
 class Value {
@@ -16,7 +17,8 @@ public:
         double, 
         bool, 
         std::string, 
-        std::shared_ptr<ArrayType>
+        std::shared_ptr<ArrayType>,
+        std::shared_ptr<ICallable>
     >;
 
     Value() : m_data(std::monostate {}) {}
@@ -56,10 +58,12 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const Value& val);
 
     Value castValue(BaseType type) const;
+    Value matchType(TypeInfo typeInfo);
     int getDepth() const;
     int getIndex() const;
 
     void modifyString(int idx, char character);
+    
 
 private:
     Type m_data;

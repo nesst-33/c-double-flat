@@ -10,7 +10,16 @@
 
 class Interpreter : public Visitor {
 public:
-    Interpreter() : m_env(std::make_shared<Environment>()) {}
+    Interpreter() : m_globals(std::make_shared<Environment>()) {
+        m_env = m_globals;
+    }
+
+    void executeScope(const auto& statements, std::shared_ptr<Environment> env);
+    std::shared_ptr<Environment> getGlobals() const { return m_globals; }
+
+    bool isReturning() const { return m_isReturning; }
+    void setReturning(bool ret) { m_isReturning = ret; }
+    Value getReturnValue() const { return returnValue; }
 
 #define VISIT_DECL(T) void visit(const T& node) override;
 AST_NODE_LIST(VISIT_DECL)
@@ -19,6 +28,8 @@ AST_NODE_LIST(VISIT_DECL)
     std::shared_ptr<Environment> m_env;
 private:
     Value lastResult;
+    bool m_isReturning{}; 
+    Value returnValue;
 
     template <typename NodeType>
     std::pair<Value, Value> evaluateBinaryFactors(const NodeType& node) {
@@ -37,6 +48,7 @@ private:
     template <typename NodeType>
     void executeOpAssignment(const NodeType& node, assignmentOp op);
     
+    const std::shared_ptr<Environment> m_globals;
 };
 
 #endif

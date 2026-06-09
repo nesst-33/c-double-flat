@@ -1,5 +1,6 @@
 #include "Interpreter.h"
 #include "Node.h"
+#include "Function.h"
 #include <algorithm>
 #include <iostream>
 #include <memory>
@@ -9,8 +10,11 @@
 
 // ENTRYPOINT
 void Interpreter::visit(const Program& node) {
-    for (const auto& statement : node.getStatements())
+    for (const auto& statement : node.getStatements()) {
         statement->accept(*this);
+        if (m_isReturning)
+            break;
+    }
 }
 
 // LITERALS
@@ -198,6 +202,26 @@ void Interpreter::visit(const Identifier& node) {
 
 // Function call
 void Interpreter::visit(const FunCall& node) {
+    std::vector<Value> arguments{};
+    for (const auto& argument: node.getArguments()) {
+        argument->accept(*this);
+        arguments.push_back(std::move(lastResult));
+    }
+
+    std::string funcName = node.getName();
+    Value::Type funcVariant = m_env->get(funcName).getValue();
+    auto* functionPtr = std::get_if<std::shared_ptr<ICallable>>(&funcVariant);
+    if (!functionPtr)
+        throw std::runtime_error("Variable '" + funcName + "' is not a function");
+
+    std::shared_ptr<ICallable> function = *functionPtr;
+
+    if (arguments.size() != function->arity()) {
+        throw std::runtime_error(std::format("Expected {} arguments but got {}",
+                    function->arity(), arguments.size()));
+    }
+
+    function->call(*this, arguments);
 }
 
 
@@ -282,17 +306,24 @@ void Interpreter::visit(const ConcatAssignStmt& node) {
     executeOpAssignment(node, [](const Value& l, const Value& r) { return l.concatenate(r); });
 }
 
-void Interpreter::visit(const Scope& node) {
-    std::shared_ptr<Environment> previous = this->m_env;
-    this->m_env = std::make_shared<Environment>(previous);
-    try {
-        for (const auto& statement : node.getStatements())
-            statement->accept(*this);
-    } catch(...) {
-        this->m_env = previous;
-        throw;
+void Interpreter::executeScope(const auto& statements, std::shared_ptr<Environment> env) {
+    // RAII guard that will automatically switch back the environment if
+    // an exception is thrown
+    struct EnvGuard {
+        std::shared_ptr<Environment>& current;
+        std::shared_ptr<Environment> old;
+        ~EnvGuard() { current = old; }
+    } guard{ this->m_env, this->m_env };
+
+    for (const auto& statement : statements) {
+        statement->accept(*this);
+        if (m_isReturning)
+            break;
     }
-    this->m_env = previous;
+}
+
+void Interpreter::visit(const Scope& node) {
+    executeScope(node.getStatements(), std::make_shared<Environment>(this->m_env));
 }
 
 bool isTruthy(const Value& val) {
@@ -316,17 +347,31 @@ void Interpreter::visit(const IfStmt& node) {
 
 void Interpreter::visit(const WhileStmt& node) {
     const auto& condition = node.getCondition();
-    while (checkCondition(condition)) 
+    while (checkCondition(condition)) {
         node.getBody()->accept(*this);     
+        if (m_isReturning)
+            break;
+    }
 }
 
 void Interpreter::visit(const RetStmt& node) {
+    const auto& retExpr = node.getExpr();
+    if (retExpr) {
+        retExpr->accept(*this);
+        returnValue = std::move(lastResult);
+    } else
+        returnValue = Value();
+
+    m_isReturning = true;
 }
 
 void Interpreter::visit(const FuncDeclStmt& node) {
+    std::shared_ptr<ICallable> funcPtr = std::make_shared<Function>(node);
+    m_globals->define(node.getTypeInfo(), node.getName(), Value(std::move(funcPtr)));
 }
 
 void Interpreter::visit(const FunCallStmt& node) {
+    node.getFunCall()->accept(*this); 
 }
 
 

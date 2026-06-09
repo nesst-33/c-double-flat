@@ -21,7 +21,7 @@ int main()
 {
     std::string source = R"(
 int a = 4
-while (a <= 9)
+while (a != 9)
 {
     a += 1
 }

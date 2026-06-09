@@ -27,7 +27,6 @@ private:
     void assignArray(TypeInfo arrTypeInfo, Value lValArray, int idx,
             Value assignedVal);
     static Value defaultInitialize(TypeInfo typeInfo);
-    static Value matchType(Value value, TypeInfo typeInfo);
 
     std::unordered_map<std::string, VarInfo> values{};
     std::shared_ptr<Environment> m_enclosing;

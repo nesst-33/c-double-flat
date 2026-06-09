@@ -160,6 +160,11 @@ Value Value::compareRelational(const Value& left, const Value& right, CompareOp 
             || std::holds_alternative<std::shared_ptr<ArrayType>>(right.m_data))
         throw std::runtime_error("Cannot compare arrays");
 
+    if (std::holds_alternative<std::shared_ptr<ICallable>>(left.m_data)
+            || std::holds_alternative<std::shared_ptr<ICallable>>(right.m_data))
+        throw std::runtime_error("Cannot compare functions");
+
+
     return compareStrOrNum(left, right, op);
 }
 
@@ -167,6 +172,10 @@ Value Value::compareEquality(const Value& left, const Value& right) {
     if (std::holds_alternative<std::monostate>(left.m_data)
             || std::holds_alternative<std::monostate>(right.m_data))
         throw std::runtime_error("Cannot compare void");
+
+    if (std::holds_alternative<std::shared_ptr<ICallable>>(left.m_data)
+            || std::holds_alternative<std::shared_ptr<ICallable>>(right.m_data))
+        throw std::runtime_error("Cannot compare functions");
 
     if (auto* arrL = std::get_if<std::shared_ptr<ArrayType>>(&left.m_data)) {
         if (auto* arrR = std::get_if<std::shared_ptr<ArrayType>>(&right.m_data)) {
@@ -253,6 +262,10 @@ bool Value::asBool() const {
             throw std::runtime_error("Cannot convert array to boolean");
         },
 
+        [](const std::shared_ptr<ICallable>&) -> bool {
+            throw std::runtime_error("Cannot convert a function identifier to boolean");
+        },
+
         [](bool val) { return val; },
 
         [](auto val) {
@@ -267,8 +280,12 @@ std::string Value::asStr() const {
             throw std::runtime_error("Cannot convert void to string");
         },
 
-        [](std::shared_ptr<ArrayType>) -> std::string {
+        [](const std::shared_ptr<ArrayType>&) -> std::string {
             throw std::runtime_error("Cannot convert array to string");
+        },
+
+        [](const std::shared_ptr<ICallable>&) -> std::string {
+            throw std::runtime_error("Cannot convert function identifier to string");
         },
 
         [](std::string val) { return val; },
@@ -277,10 +294,10 @@ std::string Value::asStr() const {
             return val ? "true" : "false";
         },
 
-
         [](auto val) {
             return std::to_string(val);
         }
+
     }, m_data);
 }
 
@@ -567,4 +584,15 @@ void Value::modifyString(int idx, char character) {
     }
     else
         throw std::runtime_error("Value is not a string");
+}
+
+Value Value::matchType(TypeInfo typeInfo) {
+    Value value = std::move(castValue(typeInfo.type));
+    int targetDepth = typeInfo.arrayDepth;
+    int depth = value.getDepth();
+    if ( depth != targetDepth ) {
+        throw std::runtime_error(std::format("Array should be nested {} time(s); is nested {} time(s)",
+                targetDepth, depth));
+    }
+    return value; 
 }

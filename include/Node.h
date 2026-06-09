@@ -1,6 +1,8 @@
 #ifndef _NODE_H
 #define _NODE_H
 
+#include <ostream>
+#include <sstream>
 #include <utility>
 #include <vector>
 #include <memory>
@@ -16,6 +18,32 @@ struct TypeInfo {
     BaseType type;
     bool isConst {};
     int arrayDepth {};
+
+    std::string toString() const {
+        std::ostringstream result{};
+        result << *this;
+        return result.str();
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, TypeInfo typeInfo) {
+        if (typeInfo.isConst)
+            os << "const ";
+        for (size_t i{}; i < typeInfo.arrayDepth; i++)
+            os << "arr ";
+        switch (typeInfo.type) {
+            case BaseType::INT:
+                os << "int";
+            case BaseType::FLP:
+                os << "flp";
+            case BaseType::STR:
+                os << "str";
+            case BaseType::BOOL:
+                os << "bool";
+            case BaseType::VOID:
+                os << "void";
+        }
+        return os;
+    }
 
     bool operator==(const TypeInfo& other) const {
         return type == other.type && arrayDepth == other.arrayDepth;

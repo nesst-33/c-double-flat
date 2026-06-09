@@ -22,23 +22,12 @@ Value Environment::defaultInitialize(TypeInfo typeInfo) {
     }
 }
 
-Value Environment::matchType(Value value, TypeInfo typeInfo) {
-    value = std::move(value.castValue(typeInfo.type));
-    int targetDepth = typeInfo.arrayDepth;
-    int depth = value.getDepth();
-    if ( depth != targetDepth ) {
-        throw std::runtime_error(std::format("Array should be nested {} time(s); is nested {} time(s)",
-                targetDepth, depth));
-    }
-    return value; 
-}
-
 void Environment::define(TypeInfo typeInfo, std::string name, Value value) {
     BaseType type = typeInfo.type;
 
     // If there's an initializer:
     if ( !std::holds_alternative<std::monostate>(value.getValue()) ) {
-        value = std::move(matchType(value, typeInfo));
+        value = std::move(value.matchType(typeInfo));
     }
     // If there's not:
     else {
@@ -56,7 +45,7 @@ void Environment::assignIdentifier(const std::string& name, Value val) {
         if (typeInfo.isConst)
             throw std::runtime_error("Variable '" + name + "' is immutable");
 
-        it->second.value = std::move(matchType(val, typeInfo));
+        it->second.value = std::move(val.matchType(typeInfo));
         return;
     }
     if (m_enclosing)
