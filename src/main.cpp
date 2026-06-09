@@ -20,8 +20,11 @@ std::deque<Token> lex(std::string_view source) {
 int main()
 {
     std::string source = R"(
-int a = 483
-b[0] = 4
+arr arr int a = [[1], [2]]
+{
+    arr int b = [3, 4]
+    a[0] = b
+}
 )";
 
     std::deque<Token> tokenized = lex(source);
@@ -34,7 +37,7 @@ b[0] = 4
     Program program = parser.parse();    
     interpreter.visit(program);
     errHandler.printErrors();
-    std::cout << interpreter.m_env.get("a") << "\n";
+    std::cout << interpreter.m_env->get("a") << "\n";
 
     return 0;
 }

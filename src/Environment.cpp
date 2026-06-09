@@ -1,4 +1,5 @@
 #include "Environment.h"
+#include <iostream>
 #include <stdexcept>
 #include <variant>
 
@@ -49,12 +50,12 @@ void Environment::define(TypeInfo typeInfo, std::string name, Value value) {
 }
 
 void Environment::assignIdentifier(const std::string& name, Value val) {
-    TypeInfo typeInfo = values.at(name).type;
-    if (typeInfo.isConst)
-        throw std::runtime_error("Variable '" + name + "' is immutable");
-
     auto it = values.find(name);
     if (it != values.end()) {
+        TypeInfo typeInfo = it->second.type;
+        if (typeInfo.isConst)
+            throw std::runtime_error("Variable '" + name + "' is immutable");
+
         it->second.value = std::move(matchType(val, typeInfo));
         return;
     }
@@ -98,26 +99,16 @@ void Environment::assignArray(TypeInfo arrTypeInfo, Value lValArray, int idx,
     }
 }
 
-TypeInfo Environment::getTypeInfo(const std::string& name) const {
-    try {
-        return values.at(name).type;
-    }
-    catch (const std::out_of_range& e) {
-        throw std::runtime_error("Undefined variable: '" + name + "'");
-    }
-}
-
 void Environment::assignArrayOrStr(Value lValArray, Value idxVal, Value assignedVal, Identifier* idNode) {
     const std::string& name = idNode->getName();
-    TypeInfo arrTypeInfo = getTypeInfo(name);
-
-    if (arrTypeInfo.isConst) 
-        throw std::runtime_error("Variable '" + name + "' is immutable");
-
     int idx = idxVal.getIndex();
 
     auto it = values.find(name);
     if (it != values.end()) {
+        TypeInfo arrTypeInfo = it->second.type;
+        if (arrTypeInfo.isConst) 
+            throw std::runtime_error("Variable '" + name + "' is immutable");
+
         if (arrTypeInfo.arrayDepth == 0 && arrTypeInfo.type == BaseType::STR) 
             return assignString(it, idx, assignedVal);
         else if (arrTypeInfo.arrayDepth == 0)

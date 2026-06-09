@@ -21,7 +21,6 @@ public:
     void assignIdentifier(const std::string& name, Value val);
     void assignArrayOrStr(Value lValArray, Value idxVal, Value assignedVal, Identifier* idNode);
     Value get(const std::string& name) const;
-    TypeInfo getTypeInfo(const std::string& name) const;
 
 private:
     void assignString(auto it, int idx, Value charVal);

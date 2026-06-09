@@ -4,18 +4,19 @@
 #include "Visitor.h"
 #include "Value.h"
 #include "Environment.h"
+#include <memory>
 #include <utility>
 
 
 class Interpreter : public Visitor {
 public:
-    Interpreter() : m_env(Environment()) {}
+    Interpreter() : m_env(std::make_shared<Environment>()) {}
 
 #define VISIT_DECL(T) void visit(const T& node) override;
 AST_NODE_LIST(VISIT_DECL)
 #undef VISIT_DECL
 
-    Environment m_env;
+    std::shared_ptr<Environment> m_env;
 private:
     Value lastResult;
 

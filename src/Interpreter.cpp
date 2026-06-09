@@ -193,7 +193,7 @@ void Interpreter::visit(const OrExpr& node) {
 
 // Variable call
 void Interpreter::visit(const Identifier& node) {
-    lastResult = m_env.get(node.getName());
+    lastResult = m_env->get(node.getName());
 }
 
 // Function call
@@ -208,7 +208,7 @@ void Interpreter::visit(const VarDeclStmt& node) {
         init->accept(*this);
         val = lastResult;
     }
-    m_env.define(node.getType(), node.getName(), val);
+    m_env->define(node.getType(), node.getName(), val);
 }
 
 Identifier* Interpreter::getIdNodePtr(ArrayExpr* arrIndexExprPtr) {
@@ -223,12 +223,12 @@ Identifier* Interpreter::getIdNodePtr(ArrayExpr* arrIndexExprPtr) {
 
 void Interpreter::executeAssignment(Expression* lhs, Value assignedVal) {
     if (auto* idNode = dynamic_cast<Identifier*>(lhs)) {
-        m_env.assignIdentifier(idNode->getName(), std::move(assignedVal)); 
+        m_env->assignIdentifier(idNode->getName(), std::move(assignedVal)); 
     }
     else if (auto* indexNode = dynamic_cast<ArrayExpr*>(lhs)) {
         auto [leftVal, rightVal] = evaluateBinaryFactors(*indexNode); 
         Identifier* idNode = getIdNodePtr(indexNode);
-        m_env.assignArrayOrStr(leftVal, rightVal, assignedVal, idNode);
+        m_env->assignArrayOrStr(leftVal, rightVal, assignedVal, idNode);
     }
     else
         throw std::runtime_error("Invalid assignment target");
@@ -286,6 +286,16 @@ void Interpreter::visit(const RetStmt& node) {
 }
 
 void Interpreter::visit(const Scope& node) {
+    std::shared_ptr<Environment> previous = this->m_env;
+    this->m_env = std::make_shared<Environment>(previous);
+    try {
+        for (const auto& statement : node.getStatements())
+            statement->accept(*this);
+    } catch(...) {
+        this->m_env = previous;
+        throw;
+    }
+    this->m_env = previous;
 }
 
 void Interpreter::visit(const IfStmt& node) {
