@@ -20,8 +20,8 @@ std::deque<Token> lex(std::string_view source) {
 int main()
 {
     std::string source = R"(
-int a
-a /= "73.5"
+int a = 483
+b[0] = 4
 )";
 
     std::deque<Token> tokenized = lex(source);
@@ -33,6 +33,7 @@ a /= "73.5"
 
     Program program = parser.parse();    
     interpreter.visit(program);
+    errHandler.printErrors();
     std::cout << interpreter.m_env.get("a") << "\n";
 
     return 0;

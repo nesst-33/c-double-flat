@@ -53,31 +53,25 @@ void Environment::assignIdentifier(const std::string& name, Value val) {
     if (typeInfo.isConst)
         throw std::runtime_error("Variable '" + name + "' is immutable");
 
+    auto it = values.find(name);
+    if (it != values.end()) {
+        it->second.value = std::move(matchType(val, typeInfo));
+        return;
+    }
+    if (m_enclosing)
+        return m_enclosing->assignIdentifier(name, val);
 
-    try {
-        values.at(name).value = std::move(matchType(val, typeInfo));
-    }
-    catch (const std::out_of_range& e) {
-        throw std::runtime_error("Undefined variable: '" + name + "'");
-    }
+    throw std::runtime_error("Undefined variable: '" + name + "'");
 }
 
-void Environment::assignString(const std::string& name, int idx, Value charVal) {
+void Environment::assignString(auto it, int idx, Value charVal) {
+    
     charVal = charVal.castValue(BaseType::STR);
     std::string character = std::get<std::string>(charVal.getValue());
-    try {
-        TypeInfo typeInfo = values.at(name).type;
-        if (typeInfo.type != BaseType::STR)
-            throw std::runtime_error("Variable '" + name + "' is not a string");
-        if (character.size() != 1)
-            throw std::runtime_error("You can only assign single characters to a string");
-        
-        values.at(name).value.modifyString(idx, character[0]);
-    }
-    catch (const std::out_of_range& e) {
-        throw std::runtime_error("Undefined variable: '" + name + "'");
-    }
+    if (character.size() != 1)
+        throw std::runtime_error("You can only assign single characters to a string");
 
+    it->second.value.modifyString(idx, character[0]);
 }
 
 void Environment::assignArray(TypeInfo arrTypeInfo, Value lValArray, int idx, 
@@ -119,22 +113,33 @@ void Environment::assignArrayOrStr(Value lValArray, Value idxVal, Value assigned
 
     if (arrTypeInfo.isConst) 
         throw std::runtime_error("Variable '" + name + "' is immutable");
-    
+
     int idx = idxVal.getIndex();
 
-    if (arrTypeInfo.arrayDepth == 0) 
-        assignString(name, idx, assignedVal);
-    else 
-        assignArray(arrTypeInfo, lValArray, idx, assignedVal);
+    auto it = values.find(name);
+    if (it != values.end()) {
+        if (arrTypeInfo.arrayDepth == 0 && arrTypeInfo.type == BaseType::STR) 
+            return assignString(it, idx, assignedVal);
+        else if (arrTypeInfo.arrayDepth == 0)
+            throw std::runtime_error("Variable '" + name 
+                    + "' doesn't support index assignment");
+        else 
+            return assignArray(arrTypeInfo, lValArray, idx, assignedVal);
+    }
+    if (m_enclosing)
+        return m_enclosing->assignArrayOrStr(lValArray, idxVal, assignedVal, idNode);
+
+    throw std::runtime_error("Variable: '" + name + "' doesn't exist");
 }
 
 
 Value Environment::get(const std::string& name) const {
-    try {
-        return values.at(name).value;
-    }
-    catch (const std::out_of_range& e) {
-        throw std::runtime_error("Undefined variable: '" + name + "'");
-    }
+    auto it = values.find(name);
+    if (it != values.end())
+        return it->second.value; 
+    if (m_enclosing)
+        return m_enclosing->get(name);
+
+    throw std::runtime_error("Undefined variable: '" + name + "'");
 }
 
