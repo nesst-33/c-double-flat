@@ -282,9 +282,6 @@ void Interpreter::visit(const ConcatAssignStmt& node) {
     executeOpAssignment(node, [](const Value& l, const Value& r) { return l.concatenate(r); });
 }
 
-void Interpreter::visit(const RetStmt& node) {
-}
-
 void Interpreter::visit(const Scope& node) {
     std::shared_ptr<Environment> previous = this->m_env;
     this->m_env = std::make_shared<Environment>(previous);
@@ -298,10 +295,32 @@ void Interpreter::visit(const Scope& node) {
     this->m_env = previous;
 }
 
+bool isTruthy(const Value& val) {
+    return std::get<bool>(val.castValue(BaseType::BOOL).getValue());
+}
+
+bool Interpreter::checkCondition(const auto& condition) {
+    condition->accept(*this);
+    return isTruthy(lastResult);
+}
+
 void Interpreter::visit(const IfStmt& node) {
+    const auto& elseBlock = node.getElse();
+    const auto& condition = node.getCondition();
+
+    if (checkCondition(condition))
+        node.getScope()->accept(*this);
+    else if (elseBlock) 
+        elseBlock->accept(*this);
 }
 
 void Interpreter::visit(const WhileStmt& node) {
+    const auto& condition = node.getCondition();
+    while (checkCondition(condition)) 
+        node.getBody()->accept(*this);     
+}
+
+void Interpreter::visit(const RetStmt& node) {
 }
 
 void Interpreter::visit(const FuncDeclStmt& node) {

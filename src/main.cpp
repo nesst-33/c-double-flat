@@ -20,10 +20,10 @@ std::deque<Token> lex(std::string_view source) {
 int main()
 {
     std::string source = R"(
-arr arr int a = [[1], [2]]
+int a = 4
+while (a <= 9)
 {
-    arr int b = [3, 4]
-    a[0] = b
+    a += 1
 }
 )";
 

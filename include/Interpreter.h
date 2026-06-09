@@ -31,6 +31,7 @@ private:
 
     Identifier* getIdNodePtr(ArrayExpr* arrIndexExprPtr);
     void executeAssignment(Expression* lhs, Value assignedVal);
+    bool checkCondition(const auto& condition);
 
     using assignmentOp = Value (*)(const Value&, const Value&);
     template <typename NodeType>
