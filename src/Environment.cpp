@@ -1,4 +1,5 @@
 #include "Environment.h"
+#include <format>
 #include <iostream>
 #include <stdexcept>
 #include <variant>
@@ -38,13 +39,36 @@ void Environment::define(TypeInfo typeInfo, std::string name, Value value) {
     values[name] = VarInfo{typeInfo, std::move(value)};
 }
 
+void Environment::defineReference(TypeInfo typeInfo, std::string name,
+        const std::string& referencedName) {
+    // Get a reference to TypeInfo and Value of the referenced variable
+    RefInfo varInfo = getRefInfo(name);
+
+    if (!typeInfo.isConst && varInfo.type.isConst)
+        throw std::runtime_error("Cannot make a non-const reference to a const variable");
+
+    // Check if types matched (implicit casting is disallowed in references)
+    if (typeInfo.arrayDepth != varInfo.type.arrayDepth
+            || typeInfo.type != varInfo.type.type) {
+        throw std::runtime_error(std::format("Cannot make a reference of type {}"
+                    " to a variable of type {}", typeInfo.toString(), varInfo.type.toString()));
+    }
+    
+    m_references[name] = std::move(varInfo);
+}
+
 void Environment::assignIdentifier(const std::string& name, Value val) {
-    auto it = values.find(name);
-    if (it != values.end()) {
+    if (auto it = m_references.find(name); it != m_references.end()) {
         TypeInfo typeInfo = it->second.type;
         if (typeInfo.isConst)
             throw std::runtime_error("Variable '" + name + "' is immutable");
-
+        it->second.value.get() = std::move(val.matchType(typeInfo));
+        return;
+    }
+    if (auto it = values.find(name); it != values.end()) {
+        TypeInfo typeInfo = it->second.type;
+        if (typeInfo.isConst)
+            throw std::runtime_error("Variable '" + name + "' is immutable");
         it->second.value = std::move(val.matchType(typeInfo));
         return;
     }
@@ -54,14 +78,13 @@ void Environment::assignIdentifier(const std::string& name, Value val) {
     throw std::runtime_error("Undefined variable: '" + name + "'");
 }
 
-void Environment::assignString(auto it, int idx, Value charVal) {
-    
+void Environment::assignString(Value* valPtr, int idx, Value charVal) {
     charVal = charVal.castValue(BaseType::STR);
     std::string character = std::get<std::string>(charVal.getValue());
     if (character.size() != 1)
         throw std::runtime_error("You can only assign single characters to a string");
 
-    it->second.value.modifyString(idx, character[0]);
+    valPtr->modifyString(idx, character[0]);
 }
 
 void Environment::assignArray(TypeInfo arrTypeInfo, Value lValArray, int idx, 
@@ -92,19 +115,29 @@ void Environment::assignArrayOrStr(Value lValArray, Value idxVal, Value assigned
     const std::string& name = idNode->getName();
     int idx = idxVal.getIndex();
 
-    auto it = values.find(name);
-    if (it != values.end()) {
-        TypeInfo arrTypeInfo = it->second.type;
-        if (arrTypeInfo.isConst) 
+    TypeInfo* typeInfoPtr;
+    Value* valPtr;
+
+    if (auto it = m_references.find(name); it != m_references.end()) {
+        typeInfoPtr = &it->second.type;
+        valPtr = &it->second.value.get();
+    }
+    if (auto it = values.find(name); it != values.end()) {
+        typeInfoPtr = &it->second.type;
+        valPtr = &it->second.value;
+    }
+
+    if (typeInfoPtr && valPtr) {
+        if (typeInfoPtr->isConst) 
             throw std::runtime_error("Variable '" + name + "' is immutable");
 
-        if (arrTypeInfo.arrayDepth == 0 && arrTypeInfo.type == BaseType::STR) 
-            return assignString(it, idx, assignedVal);
-        else if (arrTypeInfo.arrayDepth == 0)
+        if (typeInfoPtr->arrayDepth == 0 && typeInfoPtr->type == BaseType::STR) 
+            return assignString(valPtr, idx, assignedVal);
+        else if (typeInfoPtr->arrayDepth == 0)
             throw std::runtime_error("Variable '" + name 
                     + "' doesn't support index assignment");
         else 
-            return assignArray(arrTypeInfo, lValArray, idx, assignedVal);
+            return assignArray(*typeInfoPtr, lValArray, idx, assignedVal);
     }
     if (m_enclosing)
         return m_enclosing->assignArrayOrStr(lValArray, idxVal, assignedVal, idNode);
@@ -114,11 +147,23 @@ void Environment::assignArrayOrStr(Value lValArray, Value idxVal, Value assigned
 
 
 Value Environment::get(const std::string& name) const {
-    auto it = values.find(name);
-    if (it != values.end())
+    if (auto it = m_references.find(name); it != m_references.end())
+        return it->second.value;
+    if (auto it = values.find(name); it != values.end())
         return it->second.value; 
     if (m_enclosing)
         return m_enclosing->get(name);
+
+    throw std::runtime_error("Undefined variable: '" + name + "'");
+}
+
+RefInfo Environment::getRefInfo(const std::string& name) {
+    if (auto it = m_references.find(name); it != m_references.end())
+        return it->second;
+    if (auto it = values.find(name); it != values.end())
+        return {it->second.type, std::ref(it->second.value)};
+    if (m_enclosing)
+        return m_enclosing->getRefInfo(name);
 
     throw std::runtime_error("Undefined variable: '" + name + "'");
 }

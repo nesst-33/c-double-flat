@@ -6,6 +6,7 @@
 #include <memory>
 #include <stdexcept>
 #include <format>
+#include <variant>
 
 
 // ENTRYPOINT
@@ -202,26 +203,34 @@ void Interpreter::visit(const Identifier& node) {
 
 // Function call
 void Interpreter::visit(const FunCall& node) {
-    std::vector<Value> arguments{};
-    for (const auto& argument: node.getArguments()) {
-        argument->accept(*this);
-        arguments.push_back(std::move(lastResult));
-    }
-
     std::string funcName = node.getName();
     Value::Type funcVariant = m_env->get(funcName).getValue();
+
     auto* functionPtr = std::get_if<std::shared_ptr<ICallable>>(&funcVariant);
     if (!functionPtr)
-        throw std::runtime_error("Variable '" + funcName + "' is not a function");
+        throw std::runtime_error("Variable '" + funcName + "' is not callable");
 
     std::shared_ptr<ICallable> function = *functionPtr;
 
-    if (arguments.size() != function->arity()) {
+    if (node.getArguments().size() != function->arity()) {
         throw std::runtime_error(std::format("Expected {} arguments but got {}",
-                    function->arity(), arguments.size()));
+                    function->arity(), node.getArguments().size()));
     }
 
-    function->call(*this, arguments);
+    // Argument can either be an r-value or variable name
+    std::vector<std::variant<Value, std::string>> arguments{};
+    arguments.reserve(node.getArguments().size());
+
+    for (const auto& argument: node.getArguments()) {
+        if (auto idNode = dynamic_cast<Identifier*>(argument.get())) {
+            arguments.emplace_back(idNode->getName());
+        } else {
+            argument->accept(*this);
+            arguments.push_back(std::move(lastResult));
+        }
+    }
+
+    lastResult = function->call(*this, arguments);
 }
 
 

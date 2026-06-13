@@ -5,8 +5,6 @@
 #include "Node.h"
 #include "Value.h"
 #include "Interpreter.h"
-#include <algorithm>
-#include <format>
 
 class Function : public ICallable {
 public:
@@ -16,7 +14,7 @@ public:
     }
 
     Value call(Interpreter& interpreter,
-            const std::vector<Value>& arguments) const override;
+            const std::vector<std::variant<Value, std::string>>& arguments) const override;
 
     std::string toString() const override {
         return "<fn " + m_declaration.getName() + ">";
