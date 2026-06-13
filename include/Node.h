@@ -33,14 +33,19 @@ struct TypeInfo {
         switch (typeInfo.type) {
             case BaseType::INT:
                 os << "int";
+                break;
             case BaseType::FLP:
                 os << "flp";
+                break;
             case BaseType::STR:
                 os << "str";
+                break;
             case BaseType::BOOL:
                 os << "bool";
+                break;
             case BaseType::VOID:
                 os << "void";
+                break;
         }
         return os;
     }

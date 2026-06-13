@@ -39,10 +39,14 @@ void Environment::define(TypeInfo typeInfo, std::string name, Value value) {
     values[name] = VarInfo{typeInfo, std::move(value)};
 }
 
+void Environment::defineFunction(TypeInfo typeInfo, std::string name, Value value) {
+    values[name] = VarInfo{typeInfo, std::move(value)}; 
+}
+
 void Environment::defineReference(TypeInfo typeInfo, std::string name,
         const std::string& referencedName) {
     // Get a reference to TypeInfo and Value of the referenced variable
-    RefInfo varInfo = getRefInfo(name);
+    RefInfo varInfo = getRefInfo(referencedName);
 
     if (!typeInfo.isConst && varInfo.type.isConst)
         throw std::runtime_error("Cannot make a non-const reference to a const variable");
@@ -54,7 +58,7 @@ void Environment::defineReference(TypeInfo typeInfo, std::string name,
                     " to a variable of type {}", typeInfo.toString(), varInfo.type.toString()));
     }
     
-    m_references[name] = std::move(varInfo);
+    m_references.insert_or_assign(name, varInfo);
 }
 
 void Environment::assignIdentifier(const std::string& name, Value val) {

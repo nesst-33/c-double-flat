@@ -14,7 +14,7 @@ public:
         m_env = m_globals;
     }
 
-    void executeScope(const auto& statements, std::shared_ptr<Environment> env);
+    void executeScope(const std::vector<std::unique_ptr<Statement>>& statements, std::shared_ptr<Environment> env);
     std::shared_ptr<Environment> getGlobals() const { return m_globals; }
 
     bool isReturning() const { return m_isReturning; }

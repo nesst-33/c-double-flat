@@ -21,10 +21,12 @@ int main()
 {
     std::string source = R"(
 int a = 4
-while (a != 9)
+void test(int b)
 {
-    a += 1
+    b = 5
 }
+test(a)
+
 )";
 
     std::deque<Token> tokenized = lex(source);
@@ -37,6 +39,7 @@ while (a != 9)
     Program program = parser.parse();    
     interpreter.visit(program);
     errHandler.printErrors();
+    // std::cout << interpreter.m_env->get("test") << "\n";
     std::cout << interpreter.m_env->get("a") << "\n";
 
     return 0;

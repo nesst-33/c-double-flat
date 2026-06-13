@@ -315,7 +315,8 @@ void Interpreter::visit(const ConcatAssignStmt& node) {
     executeOpAssignment(node, [](const Value& l, const Value& r) { return l.concatenate(r); });
 }
 
-void Interpreter::executeScope(const auto& statements, std::shared_ptr<Environment> env) {
+void Interpreter::executeScope(const std::vector<std::unique_ptr<Statement>>& statements,
+        std::shared_ptr<Environment> env) {
     // RAII guard that will automatically switch back the environment if
     // an exception is thrown
     struct EnvGuard {
@@ -323,6 +324,8 @@ void Interpreter::executeScope(const auto& statements, std::shared_ptr<Environme
         std::shared_ptr<Environment> old;
         ~EnvGuard() { current = old; }
     } guard{ this->m_env, this->m_env };
+
+    this->m_env = env;
 
     for (const auto& statement : statements) {
         statement->accept(*this);
@@ -376,7 +379,7 @@ void Interpreter::visit(const RetStmt& node) {
 
 void Interpreter::visit(const FuncDeclStmt& node) {
     std::shared_ptr<ICallable> funcPtr = std::make_shared<Function>(node);
-    m_globals->define(node.getTypeInfo(), node.getName(), Value(std::move(funcPtr)));
+    m_globals->defineFunction(node.getTypeInfo(), node.getName(), Value(std::move(funcPtr)));
 }
 
 void Interpreter::visit(const FunCallStmt& node) {

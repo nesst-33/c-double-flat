@@ -26,6 +26,7 @@ public:
     void define(TypeInfo typeInfo, std::string name, Value value);
     void defineReference(TypeInfo typeInfo, std::string name, 
             const std::string& referencedName);
+    void defineFunction(TypeInfo typeInfo, std::string name, Value value);
     void assignIdentifier(const std::string& name, Value val);
     void assignArrayOrStr(Value lValArray, Value idxVal, Value assignedVal, Identifier* idNode);
     Value get(const std::string& name) const;

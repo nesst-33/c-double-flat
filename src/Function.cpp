@@ -21,7 +21,8 @@ Value Function::call(Interpreter& interpreter,
                 }
             }, arguments[i]);
 
-    interpreter.executeScope(m_declaration.getBody(), funcEnv);
+    auto* scope = dynamic_cast<Scope*>(m_declaration.getBody().get());
+    interpreter.executeScope(scope->getStatements(), funcEnv);
     if (interpreter.isReturning()) {
         interpreter.setReturning(false);
         Value retValue = std::move(interpreter.getReturnValue());
