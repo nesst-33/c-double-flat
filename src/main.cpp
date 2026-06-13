@@ -20,12 +20,7 @@ std::deque<Token> lex(std::string_view source) {
 int main()
 {
     std::string source = R"(
-int a = 4
-void test(int b)
-{
-    b = 5
-}
-test(a)
+arr arr int a = [[1, 2], [1, 2], [3]] - [[1, 2]]
 
 )";
 
@@ -39,7 +34,6 @@ test(a)
     Program program = parser.parse();    
     interpreter.visit(program);
     errHandler.printErrors();
-    // std::cout << interpreter.m_env->get("test") << "\n";
     std::cout << interpreter.m_env->get("a") << "\n";
 
     return 0;

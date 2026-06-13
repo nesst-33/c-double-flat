@@ -3,6 +3,7 @@
 #include <ios>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <cmath>
 #include <string>
@@ -52,6 +53,31 @@ Value Value::operator+(const Value& other) const {
 }
 
 Value Value::operator-(const Value& other) const {
+    std::optional<Value> result = std::visit(overloaded{
+
+            [](const std::shared_ptr<ArrayType>& l,
+                    const std::shared_ptr<ArrayType>& r) -> std::optional<Value> {
+                std::vector<Value> resultArr;
+                resultArr.reserve(l->size());
+
+                for (const auto& item : *l) {
+                    auto it = std::find_if(r->begin(), r->end(), [&](const Value& rightItem) {
+                        return (rightItem == item).asBool();
+                    });
+                    if (it == r->end())
+                        resultArr.push_back(item);
+                }
+                resultArr.shrink_to_fit();
+                return Value(make_shared<ArrayType>(resultArr));
+            },
+
+            [](auto&&, auto&&) -> std::optional<Value> { return std::nullopt; }
+
+    }, this->m_data, other.m_data);
+
+    if (result)
+        return *result;
+
     auto leftNum = this->asNumber();
     auto rightNum = other.asNumber();
 
@@ -228,6 +254,8 @@ std::ostream& operator<<(std::ostream& os, const Value& val) {
             os << arr->back();
             os << "]";
         },
+
+        [&os](const std::shared_ptr<ICallable>& func) { os << func->toString(); },
 
         [&os](const auto& v) { os << v; }
     }, val.m_data);

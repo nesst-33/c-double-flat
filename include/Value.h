@@ -64,14 +64,14 @@ public:
 
     void modifyString(int idx, char character);
     
-
-private:
-    Type m_data;
-
     int asInt() const;
     double asFlp() const;
     bool asBool() const;
     std::string asStr() const;
+
+
+private:
+    Type m_data;
 
     template <typename CompareOp>
     static Value compareStrOrNum(const Value& left, const Value& right, CompareOp op);
