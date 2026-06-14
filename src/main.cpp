@@ -22,7 +22,11 @@ int main()
     std::string source = R"(
 arr int a = [1, 2, 3, 4]
 int b = a >> 2
-print(b)
+
+int mult(int item, int multiplier) {
+    return item * multiplier
+}
+print([1, 2, 3, 4][mult(_, 3)])
 )";
 
     std::deque<Token> tokenized = lex(source);
@@ -35,8 +39,6 @@ print(b)
     Program program = parser.parse();    
     interpreter.visit(program);
     errHandler.printErrors();
-    // std::cout << interpreter.m_env->get("a") << "\n";
-    // std::cout << interpreter.m_env->get("b") << "\n";
 
     return 0;
 }

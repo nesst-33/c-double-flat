@@ -102,14 +102,60 @@ void Interpreter::visit(const CardinalityExpr& node) {
     lastResult = std::move(lastResult.getCardinality());
 }
 
+Value Interpreter::applyMapOperation(const Value& arrayVal, FunCall* funCall, int placeholderIdx) {
+    auto valVariant = arrayVal.getValue();
+    auto* arrPtr = std::get_if<std::shared_ptr<Value::ArrayType>>(&valVariant); 
+    if (!arrPtr)
+        throw std::runtime_error("Cannot map functions to non-array types");
+
+    auto arr = *arrPtr;
+    Value funcWrapper = m_env->get(funCall->getName());
+    auto callable = std::get<std::shared_ptr<ICallable>>(funcWrapper.getValue());
+
+    // Pre-evaluate function arguments + put empty Value instead of placeholder
+    std::vector<std::variant<Value, RefInfo>> evaluatedArgs(funCall->getArguments().size());
+    for (size_t i{}; i < funCall->getArguments().size(); i++) {
+        if (i == placeholderIdx)
+            evaluatedArgs[i] = Value();
+        else {
+            funCall->getArguments()[i]->accept(*this);
+            evaluatedArgs[i] = std::move(lastResult);
+        }
+    }
+
+    Value::ArrayType result;
+    result.reserve(arr->size());
+
+    for (const Value& item : *arr) {
+        evaluatedArgs[placeholderIdx] = item;
+        Value returnVal = callable->call(*this, evaluatedArgs);
+        result.push_back(returnVal);
+    }
+
+    return Value(std::make_shared<Value::ArrayType>(result));
+}
+
 // Indexes have to be of type int
 // Only arrays or strings can be indexed
 // Numbers will be implicitly casted to strings
 void Interpreter::visit(const ArrayExpr& node) {
-    // TODO: finish filter functions
-    // if (auto* funCallPtr = dynamic_cast<FunCall*>(node.getRightFactor().get())) { 
-    // }
-    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    node.getLeftFactor()->accept(*this);
+    Value leftVal = std::move(lastResult);
+
+    if (auto* funCallPtr = dynamic_cast<FunCall*>(node.getRightFactor().get())) { 
+        const auto& arguments = funCallPtr->getArguments();
+        for (size_t i{}; i < arguments.size(); i++) {
+            if (auto* idPtr = dynamic_cast<Identifier*>(arguments[i].get())) {
+                if (idPtr->getName() == "_") {
+                    lastResult = applyMapOperation(leftVal, funCallPtr, i);
+                    return;
+                }
+            } 
+        }
+    }
+
+    node.getLeftFactor()->accept(*this);
+    Value rightVal = std::move(lastResult);
     lastResult = leftVal[rightVal];
 }
 

@@ -47,6 +47,7 @@ private:
     Identifier* getIdNodePtr(ArrayExpr* arrIndexExprPtr);
     void executeAssignment(Expression* lhs, Value assignedVal);
     bool checkCondition(const auto& condition);
+    Value applyMapOperation(const Value& arr, FunCall* funCall, int placeholderIdx);
 
     using assignmentOp = Value (*)(const Value&, const Value&);
     template <typename NodeType>
