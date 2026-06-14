@@ -44,21 +44,19 @@ void Environment::defineFunction(TypeInfo typeInfo, std::string name, Value valu
 }
 
 void Environment::defineReference(TypeInfo typeInfo, std::string name,
-        const std::string& referencedName) {
+        RefInfo refInfo) {
     // Get a reference to TypeInfo and Value of the referenced variable
-    RefInfo varInfo = getRefInfo(referencedName);
-
-    if (!typeInfo.isConst && varInfo.type.isConst)
+    if (!typeInfo.isConst && refInfo.type.isConst)
         throw std::runtime_error("Cannot make a non-const reference to a const variable");
 
     // Check if types matched (implicit casting is disallowed in references)
-    if (typeInfo.arrayDepth != varInfo.type.arrayDepth
-            || typeInfo.type != varInfo.type.type) {
+    if (typeInfo.arrayDepth != refInfo.type.arrayDepth
+            || typeInfo.type != refInfo.type.type) {
         throw std::runtime_error(std::format("Cannot make a reference of type {}"
-                    " to a variable of type {}", typeInfo.toString(), varInfo.type.toString()));
+                    " to a variable of type {}", typeInfo.toString(), refInfo.type.toString()));
     }
     
-    m_references.insert_or_assign(name, varInfo);
+    m_references.insert_or_assign(name, refInfo);
 }
 
 void Environment::assignIdentifier(const std::string& name, Value val) {

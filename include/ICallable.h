@@ -8,12 +8,16 @@
 
 class Value;
 class Interpreter;
+struct RefInfo;
 
 class ICallable {
 public:
+    template<class... Ts>
+    struct overloaded : Ts... { using Ts::operator()...; };
+
     virtual int arity() const = 0;
     virtual Value call(Interpreter& interpreter, 
-            const std::vector<std::variant<Value, std::string>>& arguments) const = 0;
+            const std::vector<std::variant<Value, RefInfo>>& arguments) const = 0;
     virtual std::string toString() const = 0;
     virtual ~ICallable() = default;
 

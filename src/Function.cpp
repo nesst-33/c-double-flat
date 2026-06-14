@@ -1,10 +1,10 @@
 #include "Function.h"
 
-template<class... Ts>
-struct overloaded : Ts... { using Ts::operator()...; };
+// template<class... Ts>
+// struct overloaded : Ts... { using Ts::operator()...; };
 
 Value Function::call(Interpreter& interpreter,
-        const std::vector<std::variant<Value, std::string>>& arguments) const { 
+        const std::vector<std::variant<Value, RefInfo>>& arguments) const { 
     auto funcEnv = std::make_shared<Environment>(interpreter.getGlobals());
     TypeInfo expectedType = m_declaration.getTypeInfo();
 
@@ -16,8 +16,8 @@ Value Function::call(Interpreter& interpreter,
                     funcEnv->define(params[i].type, params[i].name, v);        
                 },
 
-                [&](const std::string& refName) {
-                    funcEnv->defineReference(params[i].type, params[i].name, refName);
+                [&](const RefInfo& refInfo) {
+                    funcEnv->defineReference(params[i].type, params[i].name, refInfo);
                 }
             }, arguments[i]);
 

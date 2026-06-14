@@ -534,8 +534,6 @@ Value Value::concatenate(const Value& other) const {
     }, m_data, other.m_data);
 }
 
-
-
 Value Value::split(const Value& other) const {
     int idx = other.getIndex();
 

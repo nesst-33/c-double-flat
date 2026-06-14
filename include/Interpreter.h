@@ -4,6 +4,7 @@
 #include "Visitor.h"
 #include "Value.h"
 #include "Environment.h"
+#include "PrintFunction.h"
 #include <memory>
 #include <utility>
 
@@ -11,7 +12,10 @@
 class Interpreter : public Visitor {
 public:
     Interpreter() : m_globals(std::make_shared<Environment>()) {
+        Value printFun = Value(std::make_shared<PrintFunction>());
+        m_globals->defineFunction({BaseType::VOID}, "print", std::move(printFun));
         m_env = m_globals;
+        
     }
 
     void executeScope(const std::vector<std::unique_ptr<Statement>>& statements, std::shared_ptr<Environment> env);

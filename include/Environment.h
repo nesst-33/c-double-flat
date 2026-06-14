@@ -25,17 +25,17 @@ public:
 
     void define(TypeInfo typeInfo, std::string name, Value value);
     void defineReference(TypeInfo typeInfo, std::string name, 
-            const std::string& referencedName);
+            RefInfo refInfo);
     void defineFunction(TypeInfo typeInfo, std::string name, Value value);
     void assignIdentifier(const std::string& name, Value val);
     void assignArrayOrStr(Value lValArray, Value idxVal, Value assignedVal, Identifier* idNode);
     Value get(const std::string& name) const;
+    RefInfo getRefInfo(const std::string& name);
 
 private:
     void assignString(Value* valPtr, int idx, Value charVal);
     void assignArray(TypeInfo arrTypeInfo, Value lValArray, int idx,
             Value assignedVal);
-    RefInfo getRefInfo(const std::string& name);
     static Value defaultInitialize(TypeInfo typeInfo);
 
     std::unordered_map<std::string, VarInfo> values;

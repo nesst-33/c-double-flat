@@ -106,6 +106,7 @@ void Interpreter::visit(const CardinalityExpr& node) {
 // Only arrays or strings can be indexed
 // Numbers will be implicitly casted to strings
 void Interpreter::visit(const ArrayExpr& node) {
+    // TODO: finish filter functions
     // if (auto* funCallPtr = dynamic_cast<FunCall*>(node.getRightFactor().get())) { 
     // }
     auto [leftVal, rightVal] = evaluateBinaryFactors(node);
@@ -221,12 +222,12 @@ void Interpreter::visit(const FunCall& node) {
     }
 
     // Argument can either be an r-value or variable name
-    std::vector<std::variant<Value, std::string>> arguments{};
+    std::vector<std::variant<Value, RefInfo>> arguments{};
     arguments.reserve(node.getArguments().size());
 
     for (const auto& argument: node.getArguments()) {
         if (auto idNode = dynamic_cast<Identifier*>(argument.get())) {
-            arguments.emplace_back(idNode->getName());
+            arguments.emplace_back(m_env->getRefInfo(idNode->getName()));
         } else {
             argument->accept(*this);
             arguments.push_back(std::move(lastResult));

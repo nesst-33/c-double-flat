@@ -22,7 +22,7 @@ int main()
     std::string source = R"(
 arr int a = [1, 2, 3, 4]
 int b = a >> 2
-
+print(b)
 )";
 
     std::deque<Token> tokenized = lex(source);
@@ -35,8 +35,8 @@ int b = a >> 2
     Program program = parser.parse();    
     interpreter.visit(program);
     errHandler.printErrors();
-    std::cout << interpreter.m_env->get("a") << "\n";
-    std::cout << interpreter.m_env->get("b") << "\n";
+    // std::cout << interpreter.m_env->get("a") << "\n";
+    // std::cout << interpreter.m_env->get("b") << "\n";
 
     return 0;
 }
