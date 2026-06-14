@@ -112,7 +112,7 @@ Value Value::operator*(const Value& other) const {
             },
 
             [&](auto&&, const std::shared_ptr<ArrayType>& arr) -> std::optional<Value> {
-                return multiplyArray(arr, other.asInt());
+                return multiplyArray(arr, this->asInt());
             },
 
             [](auto&&, auto&&) -> std::optional<Value> { return std::nullopt; }
