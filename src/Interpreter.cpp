@@ -1,6 +1,7 @@
 #include "Interpreter.h"
 #include "Node.h"
 #include "Function.h"
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <format>

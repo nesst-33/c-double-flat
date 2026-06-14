@@ -94,7 +94,7 @@ void Environment::assignArray(TypeInfo arrTypeInfo, Value lValArray, int idx,
 
     int targetDepth = lValArray.getDepth() - 1;
     int depth = assignedVal.getDepth();
-    if ( targetDepth <= 0 ) {
+    if ( targetDepth < 0 ) {
         throw std::runtime_error("Array was indexed too many times; max depth is "
                 + std::to_string(arrTypeInfo.arrayDepth));
     }
@@ -117,8 +117,8 @@ void Environment::assignArrayOrStr(Value lValArray, Value idxVal, Value assigned
     const std::string& name = idNode->getName();
     int idx = idxVal.getIndex();
 
-    TypeInfo* typeInfoPtr;
-    Value* valPtr;
+    TypeInfo* typeInfoPtr = nullptr;
+    Value* valPtr = nullptr;
 
     if (auto it = m_references.find(name); it != m_references.end()) {
         typeInfoPtr = &it->second.type;

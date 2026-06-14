@@ -13,8 +13,8 @@ add_library(InterpreterLib src/Value.cpp src/Interpreter.cpp src/Environment.cpp
             src/Function.cpp)
 add_library(ErrLib src/ErrorPrinter.cpp)
 
-add_executable(compiler src/main.cpp)
-target_link_libraries(compiler PRIVATE LexerLib ParserLib InterpreterLib ErrLib)
+add_executable(cflat src/main.cpp)
+target_link_libraries(cflat PRIVATE LexerLib ParserLib InterpreterLib ErrLib)
 
 cmake_policy(SET CMP0135 NEW)
 include(FetchContent)

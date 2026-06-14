@@ -13,7 +13,8 @@
 // used by the MockLexer
 std::deque<Token> lex(std::string_view source) {
     std::istringstream stream((std::string(source)));
-    Lexer l(stream);
+    ErrorHandler errHandler;
+    Lexer l(stream, errHandler);
     std::deque<Token> tokens;
     Token t;
     do {
@@ -659,8 +660,8 @@ int main()
 )";
 
 	std::istringstream input(source);
-	Lexer lexer(input);
-	ErrorHandler errHandler;
+    ErrorHandler errHandler;
+	Lexer lexer(input, errHandler);
 	Parser parser(lexer, errHandler);
     Program parsed = parser.parse();
 

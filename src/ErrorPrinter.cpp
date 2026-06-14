@@ -17,7 +17,7 @@ void ErrorPrinter::reportError(std::ostream& os, const std::unique_ptr<LangError
     Position pos = error->getPosition();
 
 
-    os << Color::BOLD;
+    os << "\n" << Color::BOLD;
     switch (error->getSeverity()) {
         case Severity::WARNING:
             os << Color::YELLOW;
@@ -40,7 +40,7 @@ void ErrorPrinter::reportError(std::ostream& os, const std::unique_ptr<LangError
 
     std::string lineSnippet;
     size_t currLine{1};
-    for (; currLine < pos.line && std::getline(file, lineSnippet); ++currLine);
+    for (; currLine <= pos.line && std::getline(file, lineSnippet); ++currLine);
     file.close();
 
     std::string caretPadding = "";
@@ -58,12 +58,15 @@ void ErrorPrinter::reportError(std::ostream& os, const std::unique_ptr<LangError
     os << Color::GRAY << emptyPrefix << "\n"
         << linePrefix << Color::RESET << lineSnippet << "\n"
         << Color::GRAY << emptyPrefix << Color::RESET << Color::RED << caretLine << Color::RESET << "\n"
-        << Color::GRAY << emptyPrefix;  
+        << Color::GRAY << emptyPrefix << "\n";  
 
 }
 
 void ErrorPrinter::printErrors(std::ostream& os, const std::string& filename) const {
-    for (const auto& error : m_errors) {
-        reportError(os, error, filename);
+    for (size_t i{}; i < m_errors.size(); i++) {
+        if (i >= MAX_ERRS)
+            os << "Max. number of errors exceeded (" << MAX_ERRS
+                << "). Stopping now...";
+        reportError(os, m_errors[i], filename);
     }
 }

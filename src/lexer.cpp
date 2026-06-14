@@ -1,6 +1,7 @@
 #include "Lexer.h"
 #include <cctype>
 #include <limits>
+#include <memory>
 
 // TODO: change to array
 const std::unordered_map<std::string_view, TokenType> Lexer::keyword_map = {
@@ -292,8 +293,17 @@ void Lexer::clearWhitespace()
     }
 }
 
+Token Lexer::getToken() {
+    try {
+        return extractToken();
+    } catch (const LexerException& e) {
+        m_errHandler.report(std::make_unique<LexerError>(e.what(), Severity::ERROR,
+                    e.getPosition())); 
+    }
+    return Token(TokenType::UNKNOWN, {});
+}
 
-Token Lexer::getToken()
+Token Lexer::extractToken()
 {
     // TODO: break out into smaller functions
     clearWhitespace();

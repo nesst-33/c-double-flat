@@ -19,7 +19,17 @@ public:
         , m_globals(std::make_shared<Environment>()) {
         Value printFun = Value(std::make_shared<PrintFunction>());
         m_globals->defineFunction({BaseType::VOID}, "print", std::move(printFun));
+
+        Value clearFun = Value(std::make_shared<ClearFunction>());
+        m_globals->defineFunction({BaseType::VOID}, "clear", std::move(clearFun));
+
         m_env = m_globals;
+    }
+
+    void interpret(const Program& program) {
+        try {
+            this->visit(program);
+        } catch (const LangError& e) {}
     }
 
     void executeScope(const std::vector<std::unique_ptr<Statement>>& statements, std::shared_ptr<Environment> env);
@@ -29,11 +39,12 @@ public:
     void setReturning(bool ret) { m_isReturning = ret; }
     Value getReturnValue() const { return returnValue; }
 
+
+private:
 #define VISIT_DECL(T) void visit(const T& node) override;
 AST_NODE_LIST(VISIT_DECL)
 #undef VISIT_DECL
 
-private:
     Value lastResult;
     bool m_isReturning{}; 
     Value returnValue;
@@ -50,8 +61,6 @@ private:
         lastPosition = expression->getPosition();
         expression->accept(*this);
     }
-
-
 
     template <typename NodeType>
     std::pair<Value, Value> evaluateBinaryFactors(const NodeType& node); 
