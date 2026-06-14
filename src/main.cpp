@@ -20,7 +20,7 @@ std::deque<Token> lex(std::string_view source) {
 int main()
 {
     std::string source = R"(
-arr arr int a = [[1, 2], [1, 2], [3]] - [[1, 2]]
+arr arr int a = [[1, 2], [1, 2]] * "2.5"
 
 )";
 

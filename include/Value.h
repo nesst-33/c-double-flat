@@ -91,6 +91,7 @@ private:
     bool requiresCasting(BaseType type) const;
     BaseType getBaseType() const;
     
+    static Value multiplyArray(const std::shared_ptr<ArrayType>& arr, int mult);
 };
 
 #endif

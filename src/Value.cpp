@@ -57,7 +57,7 @@ Value Value::operator-(const Value& other) const {
 
             [](const std::shared_ptr<ArrayType>& l,
                     const std::shared_ptr<ArrayType>& r) -> std::optional<Value> {
-                std::vector<Value> resultArr;
+                ArrayType resultArr;
                 resultArr.reserve(l->size());
 
                 for (const auto& item : *l) {
@@ -86,7 +86,42 @@ Value Value::operator-(const Value& other) const {
     }, leftNum, rightNum);
 }
 
+Value Value::multiplyArray(const std::shared_ptr<ArrayType>& arr, int mult) {
+    if (mult <= 0)
+        throw std::runtime_error("Cannot mulitply an array by a non-positive number");
+
+    ArrayType resultArr;
+    resultArr.reserve(arr->size() * mult);
+
+    for (size_t i{}; i < mult; i++)
+        resultArr.insert(resultArr.end(), arr->begin(), arr->end());
+
+    return Value(std::make_shared<ArrayType>(resultArr));
+}
+
 Value Value::operator*(const Value& other) const {
+    std::optional<Value> result = std::visit(overloaded{
+            [](const std::shared_ptr<ArrayType>&,
+                    const std::shared_ptr<ArrayType>&) -> std::optional<Value> {
+                throw std::runtime_error("Cannot multiply two arrays");
+            },
+
+            [&](const std::shared_ptr<ArrayType>& arr,
+                    auto&&) -> std::optional<Value> { 
+                return multiplyArray(arr, other.asInt()); 
+            },
+
+            [&](auto&&, const std::shared_ptr<ArrayType>& arr) -> std::optional<Value> {
+                return multiplyArray(arr, other.asInt());
+            },
+
+            [](auto&&, auto&&) -> std::optional<Value> { return std::nullopt; }
+        
+    }, this->m_data, other.m_data);
+
+    if (result)
+        return *result;
+
     auto leftNum = this->asNumber();
     auto rightNum = other.asNumber();
 
