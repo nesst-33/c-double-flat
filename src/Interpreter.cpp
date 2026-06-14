@@ -106,6 +106,8 @@ void Interpreter::visit(const CardinalityExpr& node) {
 // Only arrays or strings can be indexed
 // Numbers will be implicitly casted to strings
 void Interpreter::visit(const ArrayExpr& node) {
+    // if (auto* funCallPtr = dynamic_cast<FunCall*>(node.getRightFactor().get())) { 
+    // }
     auto [leftVal, rightVal] = evaluateBinaryFactors(node);
     lastResult = leftVal[rightVal];
 }
@@ -130,12 +132,13 @@ void Interpreter::visit(const SplitExpr& node) {
 
 // Appending happens by shallow copy
 void Interpreter::visit(const AppendExpr& node) {
-    // TODO: finish
     auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    lastResult = leftVal.append(rightVal);
 }
 
 void Interpreter::visit(const ExtractExpr& node) {
-    // TODO: implement
+    auto [leftVal, rightVal] = evaluateBinaryFactors(node);
+    lastResult = leftVal.extract(rightVal);
 }
 
 // Relational

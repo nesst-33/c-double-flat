@@ -20,7 +20,8 @@ std::deque<Token> lex(std::string_view source) {
 int main()
 {
     std::string source = R"(
-arr arr int a = 4 * [[1, 2]]
+arr int a = [1, 2, 3, 4]
+int b = a >> 2
 
 )";
 
@@ -35,6 +36,7 @@ arr arr int a = 4 * [[1, 2]]
     interpreter.visit(program);
     errHandler.printErrors();
     std::cout << interpreter.m_env->get("a") << "\n";
+    std::cout << interpreter.m_env->get("b") << "\n";
 
     return 0;
 }

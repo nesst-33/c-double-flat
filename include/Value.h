@@ -52,8 +52,8 @@ public:
     Value concatenate(const Value& other) const;
     Value split(const Value& other) const;
     Value intersection(const Value& other) const;
-
-    void append(const Value& other);
+    Value append(const Value& other) const;
+    Value extract(const Value& other);
 
     friend std::ostream& operator<<(std::ostream& os, const Value& val);
 

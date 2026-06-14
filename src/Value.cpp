@@ -140,7 +140,6 @@ Value Value::operator/(const Value& other) const {
 
         return Value(static_cast<double>(l) / r);
     }, leftNum, rightNum);
-
 }
 
 Value Value::operator%(const Value& other) const {
@@ -529,12 +528,8 @@ Value Value::concatenate(const Value& other) const {
             return Value(std::move(concatenated));
         },
 
-        [](const std::string& strL, const std::string& strR) {
-            return Value(strL + strR);
-        },
-
-        [](auto&&, auto&&) -> Value {
-            throw std::runtime_error("You can only concatenate arrays or strings");
+        [&](auto&&, auto&&) {
+            return Value(this->asStr() + other.asStr());
         }
     }, m_data, other.m_data);
 }
@@ -618,20 +613,39 @@ Value Value::intersection(const Value& other) const {
     }, m_data, other.m_data);
 }
 
-void Value::append(const Value& other) {
-    std::visit(overloaded{
-        [&other](std::shared_ptr<ArrayType>& arr) {
-            arr->push_back(other);
+Value Value::append(const Value& other) const {
+    return std::visit(overloaded{
+        [&](const std::shared_ptr<ArrayType>& arr) {
+            ArrayType rightArr{other};
+            Value rightVal = Value(std::make_shared<ArrayType>(rightArr));
+            return this->concatenate(rightVal);
         },
 
-        [&other](std::string& str) {
-            str += other.asStr();
+        [&](const std::string& str) {
+            return this->concatenate(other);
         },
 
-        [](auto&&) {
+        [](auto&&) -> Value {
             throw std::runtime_error("You can only append to arrays or strings");
         }
+    }, m_data);
+}
 
+Value Value::extract(const Value& other) {
+    int idx = other.getIndex();
+
+    return std::visit(overloaded{
+            [&](std::shared_ptr<ArrayType> arr) {
+                if (idx >= arr->size())
+                    throw std::runtime_error("Extract index is out of bounds");
+                Value popped = (*this)[other];
+                arr->erase(arr->begin() + idx);
+                return popped; 
+            },
+
+            [](auto&&) -> Value {
+                throw std::runtime_error("You can only extract from arrays");
+            }
     }, m_data);
 }
 
