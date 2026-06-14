@@ -57,14 +57,18 @@ public:
     void raise() const override { throw *this; }
 
     std::string getPrefix() const override {
-        return (m_severity == Severity::WARNING) ? "WARNING: " : "Syntax Error: ";
+        return (m_severity == Severity::WARNING) ? "WARNING: " : "Lexical Error: ";
     }
 };
 
-class InterpreterError : public LangError {
+class RuntimeError : public LangError {
 public:
     using LangError::LangError;
     void raise() const override { throw *this; }
+
+    std:: string getPrefix() const override {
+        return (m_severity == Severity::WARNING) ? "WARNING: " : "Runtime Error: ";
+    }
 };
 
 #endif

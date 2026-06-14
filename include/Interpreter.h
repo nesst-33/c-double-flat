@@ -1,21 +1,25 @@
 #ifndef _INTERPRETER_H
 #define _INTERPRETER_H
 
+#include "LangError.h"
+#include "Token.h"
 #include "Visitor.h"
 #include "Value.h"
 #include "Environment.h"
 #include "PrintFunction.h"
+#include "ErrorHandler.h"
 #include <memory>
 #include <utility>
 
 
 class Interpreter : public Visitor {
 public:
-    Interpreter() : m_globals(std::make_shared<Environment>()) {
+    Interpreter(ErrorHandler& errHandler) 
+        : m_err(errHandler)
+        , m_globals(std::make_shared<Environment>()) {
         Value printFun = Value(std::make_shared<PrintFunction>());
         m_globals->defineFunction({BaseType::VOID}, "print", std::move(printFun));
         m_env = m_globals;
-        
     }
 
     void executeScope(const std::vector<std::unique_ptr<Statement>>& statements, std::shared_ptr<Environment> env);
@@ -29,20 +33,28 @@ public:
 AST_NODE_LIST(VISIT_DECL)
 #undef VISIT_DECL
 
-    std::shared_ptr<Environment> m_env;
 private:
     Value lastResult;
     bool m_isReturning{}; 
     Value returnValue;
+    ErrorHandler& m_err;
+    std::shared_ptr<Environment> m_env;
+    const std::shared_ptr<Environment> m_globals;
+    Position lastPosition;
+
+    void execute(const std::unique_ptr<Statement>& statement) {
+        lastPosition = statement->getPosition();
+        statement->accept(*this);
+    }
+    void evaluate(const std::unique_ptr<Expression>& expression) {
+        lastPosition = expression->getPosition();
+        expression->accept(*this);
+    }
+
+
 
     template <typename NodeType>
-    std::pair<Value, Value> evaluateBinaryFactors(const NodeType& node) {
-        node.getLeftFactor()->accept(*this);
-        Value leftVal = std::move(lastResult);
-        node.getRightFactor()->accept(*this);
-        Value rightVal = std::move(lastResult);
-        return {std::move(leftVal), std::move(rightVal)};
-    }
+    std::pair<Value, Value> evaluateBinaryFactors(const NodeType& node); 
 
     Identifier* getIdNodePtr(ArrayExpr* arrIndexExprPtr);
     void executeAssignment(Expression* lhs, Value assignedVal);
@@ -52,8 +64,8 @@ private:
     using assignmentOp = Value (*)(const Value&, const Value&);
     template <typename NodeType>
     void executeOpAssignment(const NodeType& node, assignmentOp op);
-    
-    const std::shared_ptr<Environment> m_globals;
+
+    void reportError(const std::string& message, Position pos);
 };
 
 #endif

@@ -1,8 +1,6 @@
 #include "Interpreter.h"
 #include "Node.h"
 #include "Function.h"
-#include <algorithm>
-#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <format>
@@ -11,10 +9,14 @@
 
 // ENTRYPOINT
 void Interpreter::visit(const Program& node) {
-    for (const auto& statement : node.getStatements()) {
-        statement->accept(*this);
-        if (m_isReturning)
-            break;
+    try {
+        for (const auto& statement : node.getStatements()) {
+            execute(statement);
+            if (m_isReturning)
+                break;
+        }
+    } catch (const std::runtime_error& e) {
+        reportError(e.what(), {});
     }
 }
 
@@ -46,7 +48,7 @@ void Interpreter::visit(const ArrayLit& node) {
     }
 
     for (const auto& element : arrElements) {
-        element->accept(*this);
+        evaluate(element);
         arrVal->push_back(lastResult);
     }
 
@@ -61,13 +63,11 @@ void Interpreter::visit(const AddExpr& node) {
 }
 
 void Interpreter::visit(const SubExpr& node) {
-    // TODO: add array handling
     auto [leftVal, rightVal] = evaluateBinaryFactors(node);
     lastResult = std::move(leftVal - rightVal);
 }
 
 void Interpreter::visit(const MultExpr& node) {
-    // TODO: add array handling
     auto [leftVal, rightVal] = evaluateBinaryFactors(node);
     lastResult = std::move(leftVal * rightVal);
 }
@@ -83,22 +83,22 @@ void Interpreter::visit(const ModExpr& node) {
 }
 
 void Interpreter::visit(const AsExpr& node) {
-    node.getCastedExpr()->accept(*this);
+    evaluate(node.getCastedExpr());
     lastResult = std::move(lastResult.castValue(node.getType()));
 }
 
 void Interpreter::visit(const PositiveExpr& node) {
-    node.getFactor()->accept(*this);
+    evaluate(node.getFactor());
 }
 
 void Interpreter::visit(const NegativeExpr& node) {
-    node.getFactor()->accept(*this);
+    evaluate(node.getFactor());
     lastResult = std::move(lastResult.negateNum());
 }
 
 // Array + string operators
 void Interpreter::visit(const CardinalityExpr& node) {
-    node.getFactor()->accept(*this);
+    evaluate(node.getFactor());
     lastResult = std::move(lastResult.getCardinality());
 }
 
@@ -106,7 +106,7 @@ Value Interpreter::applyMapOperation(const Value& arrayVal, FunCall* funCall, in
     auto valVariant = arrayVal.getValue();
     auto* arrPtr = std::get_if<std::shared_ptr<Value::ArrayType>>(&valVariant); 
     if (!arrPtr)
-        throw std::runtime_error("Cannot map functions to non-array types");
+        reportError("Cannot map functions to non-array types", funCall->getPosition());
 
     auto arr = *arrPtr;
     Value funcWrapper = m_env->get(funCall->getName());
@@ -118,7 +118,7 @@ Value Interpreter::applyMapOperation(const Value& arrayVal, FunCall* funCall, in
         if (i == placeholderIdx)
             evaluatedArgs[i] = Value();
         else {
-            funCall->getArguments()[i]->accept(*this);
+            evaluate(funCall->getArguments()[i]);
             evaluatedArgs[i] = std::move(lastResult);
         }
     }
@@ -139,7 +139,7 @@ Value Interpreter::applyMapOperation(const Value& arrayVal, FunCall* funCall, in
 // Only arrays or strings can be indexed
 // Numbers will be implicitly casted to strings
 void Interpreter::visit(const ArrayExpr& node) {
-    node.getLeftFactor()->accept(*this);
+    evaluate(node.getLeftFactor());
     Value leftVal = std::move(lastResult);
 
     if (auto* funCallPtr = dynamic_cast<FunCall*>(node.getRightFactor().get())) { 
@@ -154,7 +154,7 @@ void Interpreter::visit(const ArrayExpr& node) {
         }
     }
 
-    node.getLeftFactor()->accept(*this);
+    evaluate(node.getRightFactor());
     Value rightVal = std::move(lastResult);
     lastResult = leftVal[rightVal];
 }
@@ -232,7 +232,7 @@ void Interpreter::visit(const NotEqExpr& node) {
 
 // Logical
 void Interpreter::visit(const NotExpr& node) {
-    node.getFactor()->accept(*this);
+    evaluate(node.getFactor());
     lastResult = std::move(lastResult.logicalNot());
 }
 
@@ -258,13 +258,13 @@ void Interpreter::visit(const FunCall& node) {
 
     auto* functionPtr = std::get_if<std::shared_ptr<ICallable>>(&funcVariant);
     if (!functionPtr)
-        throw std::runtime_error("Variable '" + funcName + "' is not callable");
+        reportError("Variable '" + funcName + "' is not callable", node.getPosition());
 
     std::shared_ptr<ICallable> function = *functionPtr;
 
     if (node.getArguments().size() != function->arity()) {
-        throw std::runtime_error(std::format("Expected {} arguments but got {}",
-                    function->arity(), node.getArguments().size()));
+        reportError(std::format("Expected {} arguments but got {}",
+                    function->arity(), node.getArguments().size()), node.getPosition());
     }
 
     // Argument can either be an r-value or variable name
@@ -275,7 +275,7 @@ void Interpreter::visit(const FunCall& node) {
         if (auto idNode = dynamic_cast<Identifier*>(argument.get())) {
             arguments.emplace_back(m_env->getRefInfo(idNode->getName()));
         } else {
-            argument->accept(*this);
+            evaluate(argument);
             arguments.push_back(std::move(lastResult));
         }
     }
@@ -288,7 +288,7 @@ void Interpreter::visit(const FunCall& node) {
 void Interpreter::visit(const VarDeclStmt& node) {
     Value val;
     if ( const auto& init = node.getInitializer() ) {
-        init->accept(*this);
+        evaluate(init);
         val = lastResult;
     }
     m_env->define(node.getType(), node.getName(), val);
@@ -314,14 +314,13 @@ void Interpreter::executeAssignment(Expression* lhs, Value assignedVal) {
         m_env->assignArrayOrStr(leftVal, rightVal, assignedVal, idNode);
     }
     else
-        throw std::runtime_error("Invalid assignment target");
-    
+        reportError("Invalid assignment target", lhs->getPosition());
 }
 
 void Interpreter::visit(const BasicAssignStmt& node) {
     Expression* lhs = node.getLhs().get(); 
     const auto& rhs = node.getRhs();
-    rhs->accept(*this);
+    evaluate(rhs);
     Value assignedVal = std::move(lastResult);
 
     executeAssignment(lhs, assignedVal);
@@ -329,14 +328,13 @@ void Interpreter::visit(const BasicAssignStmt& node) {
 
 template <typename NodeType>
 void Interpreter::executeOpAssignment(const NodeType& node, assignmentOp op) {
-    Expression* lhs = node.getLhs().get();
-
-    lhs->accept(*this);
+    evaluate(node.getLhs());
     Value currentVal = std::move(lastResult);
 
-    node.getRhs()->accept(*this);
+    evaluate(node.getRhs());
     Value modifierVal = std::move(lastResult);
 
+    Expression* lhs = node.getLhs().get();
     Value computedVal = op(currentVal, modifierVal);
     executeAssignment(lhs, std::move(computedVal));
 }
@@ -378,7 +376,7 @@ void Interpreter::executeScope(const std::vector<std::unique_ptr<Statement>>& st
     this->m_env = env;
 
     for (const auto& statement : statements) {
-        statement->accept(*this);
+        execute(statement);
         if (m_isReturning)
             break;
     }
@@ -393,7 +391,7 @@ bool isTruthy(const Value& val) {
 }
 
 bool Interpreter::checkCondition(const auto& condition) {
-    condition->accept(*this);
+    evaluate(condition);
     return isTruthy(lastResult);
 }
 
@@ -402,15 +400,15 @@ void Interpreter::visit(const IfStmt& node) {
     const auto& condition = node.getCondition();
 
     if (checkCondition(condition))
-        node.getScope()->accept(*this);
+        execute(node.getScope());
     else if (elseBlock) 
-        elseBlock->accept(*this);
+        execute(elseBlock);
 }
 
 void Interpreter::visit(const WhileStmt& node) {
     const auto& condition = node.getCondition();
     while (checkCondition(condition)) {
-        node.getBody()->accept(*this);     
+        execute(node.getBody());
         if (m_isReturning)
             break;
     }
@@ -419,7 +417,7 @@ void Interpreter::visit(const WhileStmt& node) {
 void Interpreter::visit(const RetStmt& node) {
     const auto& retExpr = node.getExpr();
     if (retExpr) {
-        retExpr->accept(*this);
+        evaluate(retExpr);
         returnValue = std::move(lastResult);
     } else
         returnValue = Value();
@@ -433,7 +431,18 @@ void Interpreter::visit(const FuncDeclStmt& node) {
 }
 
 void Interpreter::visit(const FunCallStmt& node) {
-    node.getFunCall()->accept(*this); 
+    evaluate(node.getFunCall());
 }
 
+void Interpreter::reportError(const std::string& message, Position pos) {
+    m_err.report(std::make_unique<RuntimeError>(message, Severity::ERROR, pos));
+}
 
+template <typename NodeType>
+std::pair<Value, Value> Interpreter::evaluateBinaryFactors(const NodeType& node) {
+    evaluate(node.getLeftFactor());
+    Value leftVal = std::move(lastResult);
+    evaluate(node.getRightFactor());
+    Value rightVal = std::move(lastResult);
+    return {std::move(leftVal), std::move(rightVal)};
+}

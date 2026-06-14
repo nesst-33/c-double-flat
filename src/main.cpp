@@ -20,13 +20,17 @@ std::deque<Token> lex(std::string_view source) {
 int main()
 {
     std::string source = R"(
-arr int a = [1, 2, 3, 4]
-int b = a >> 2
-
-int mult(int item, int multiplier) {
-    return item * multiplier
+int fib(int n) {
+    if (n <= 0) {
+        return 0
+    }
+    if (n == 1) {
+        return 1
+    }
+    return fib(n-1) + fib(n-2)
 }
-print([1, 2, 3, 4][mult(_, 3)])
+
+print(fib(10))
 )";
 
     std::deque<Token> tokenized = lex(source);
@@ -34,7 +38,7 @@ print([1, 2, 3, 4][mult(_, 3)])
     MockLexer lexer{tokenized};
     ErrorHandler errHandler;
     Parser parser{lexer, errHandler};
-    Interpreter interpreter;
+    Interpreter interpreter(errHandler);
 
     Program program = parser.parse();    
     interpreter.visit(program);
