@@ -16,7 +16,7 @@ void Interpreter::visit(const Program& node) {
                 break;
         }
     } catch (const std::runtime_error& e) {
-        reportError(e.what(), {});
+        reportError(e.what(), lastPosition);
     }
 }
 

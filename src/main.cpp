@@ -3,6 +3,8 @@
 #include "Interpreter.h"
 #include <deque>
 #include <sstream>
+#include "ErrorPrinter.h"
+#include <iostream>
 
 std::deque<Token> lex(std::string_view source) {
     std::istringstream stream((std::string(source)));
@@ -20,6 +22,7 @@ std::deque<Token> lex(std::string_view source) {
 int main()
 {
     std::string source = R"(
+
 int fib(int n) {
     if (n <= 0) {
         return 0
@@ -30,7 +33,8 @@ int fib(int n) {
     return fib(n-1) + fib(n-2)
 }
 
-print(fib(10))
+# print(fib(10))
+print(10/0)
 )";
 
     std::deque<Token> tokenized = lex(source);
@@ -38,11 +42,18 @@ print(fib(10))
     MockLexer lexer{tokenized};
     ErrorHandler errHandler;
     Parser parser{lexer, errHandler};
-    Interpreter interpreter(errHandler);
+    Interpreter interpreter{errHandler};
 
     Program program = parser.parse();    
-    interpreter.visit(program);
-    errHandler.printErrors();
+
+    try {
+        interpreter.visit(program);
+    } catch (const LangError& e) {}
+
+    ErrorPrinter printer{errHandler.getErrors()};
+    printer.printErrors(std::cerr, "stdin");
+
+    
 
     return 0;
 }
