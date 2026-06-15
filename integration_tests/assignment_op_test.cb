@@ -13,7 +13,7 @@ print(a)
 a /= 2
 print(a)
 
-# This shouldn't change anything
+# This shouldn't change anything (we're adding past the precision point)
 a ~= "34"
 print(a)
 

@@ -21,7 +21,7 @@ public:
         std::shared_ptr<ICallable>
     >;
 
-    Value() : m_data(std::monostate {}) {}
+    Value() : m_data(std::monostate {}), m_isConst(false) {}
     Value(Type val) : m_data(std::move(val)) {}
 
     std::variant<int, double> asNumber() const;
@@ -69,9 +69,12 @@ public:
     bool asBool() const;
     std::string asStr() const;
 
+    bool getConst() const { return m_isConst; }
+    void qualify();
 
 private:
     Type m_data;
+    bool m_isConst = false;
 
     template <typename CompareOp>
     static Value compareStrOrNum(const Value& left, const Value& right, CompareOp op);
@@ -90,6 +93,7 @@ private:
     BaseType getBaseType() const;
     
     static Value multiplyArray(const std::shared_ptr<ArrayType>& arr, int mult);
+
 };
 
 #endif

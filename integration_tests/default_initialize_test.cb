@@ -1,0 +1,14 @@
+int a
+print(a)
+
+flp b
+print(b)
+
+str c
+print(c)
+
+bool d
+print(d)
+
+print("This should throw an error:")
+arr arr int e

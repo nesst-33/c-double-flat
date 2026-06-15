@@ -33,7 +33,9 @@ void Environment::define(TypeInfo typeInfo, std::string name, Value value) {
         value = std::move(value.matchType(typeInfo));
     // If there's not:
     else 
-        value = std::move(defaultInitialize(typeInfo));
+        value = std::move(defaultInitialize(typeInfo)); 
+
+    if (typeInfo.isConst) { value.qualify(); }
 
     auto [it, inserted] = values.try_emplace(name, typeInfo, std::move(value));
     if (!inserted)

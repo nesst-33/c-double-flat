@@ -438,6 +438,8 @@ BaseType Value::getBaseType() const {
 }
     
 bool Value::requiresCasting(BaseType type) const {
+    if (m_isConst)
+        return true;
     // This method is for checking if we actually need to create a casted deep copy
     if (const auto* arr = std::get_if<std::shared_ptr<ArrayType>>(&m_data)) {
         for (const auto& val : **arr) {
@@ -729,3 +731,13 @@ Value Value::matchType(TypeInfo typeInfo) {
     return value; 
 }
 
+void Value::qualify() {
+    m_isConst = true;
+    std::visit(overloaded{
+        [](std::shared_ptr<ArrayType>& arr) {
+            for (auto& val : *arr)
+                val.qualify();
+        },
+        [](auto&&){}
+    }, m_data);
+}
