@@ -1,4 +1,5 @@
 #include "Function.h"
+#include <stdexcept>
 
 // template<class... Ts>
 // struct overloaded : Ts... { using Ts::operator()...; };
@@ -25,6 +26,10 @@ Value Function::call(Interpreter& interpreter,
     interpreter.executeScope(scope->getStatements(), funcEnv);
     if (interpreter.isReturning()) {
         interpreter.setReturning(false);
+
+        if (expectedType.type == BaseType::VOID)
+            throw std::runtime_error("Void function cannot return a value");
+
         Value retValue = std::move(interpreter.getReturnValue());
         return retValue.matchType(expectedType);
     }

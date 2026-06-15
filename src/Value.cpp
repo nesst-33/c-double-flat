@@ -4,6 +4,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <cmath>
 #include <string>
@@ -372,8 +373,11 @@ std::string Value::asStr() const {
             throw std::runtime_error("Cannot convert void to string");
         },
 
-        [](const std::shared_ptr<ArrayType>&) -> std::string {
-            throw std::runtime_error("Cannot convert array to string");
+        [&](const std::shared_ptr<ArrayType>&) {
+            std::ostringstream result;
+            result << *this;   
+            return result.str();
+            // throw std::runtime_error("Cannot convert array to string");
         },
 
         [](const std::shared_ptr<ICallable>&) -> std::string {

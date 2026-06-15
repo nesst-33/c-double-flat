@@ -34,6 +34,7 @@ target_link_libraries(
     InterpreterLib
 )
 
+
 include(GoogleTest)
 gtest_discover_tests(lexer_tests)
 gtest_discover_tests(parser_tests)

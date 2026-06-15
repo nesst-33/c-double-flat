@@ -23,7 +23,7 @@ Value Environment::defaultInitialize(TypeInfo typeInfo) {
 
 void Environment::define(TypeInfo typeInfo, std::string name, Value value) {
     if (m_references.contains(name))
-        throw std::runtime_error("Variable " + name + " already exists");
+        throw std::runtime_error("Variable '" + name + "' already exists");
 
     BaseType type = typeInfo.type;
 
@@ -36,16 +36,16 @@ void Environment::define(TypeInfo typeInfo, std::string name, Value value) {
 
     auto [it, inserted] = values.try_emplace(name, typeInfo, std::move(value));
     if (!inserted)
-        throw std::runtime_error("Variable " + name + " already exists");
+        throw std::runtime_error("Variable '" + name + "' already exists");
 }
 
 void Environment::defineFunction(TypeInfo typeInfo, std::string name, Value value) {
     if (m_references.contains(name))
-        throw std::runtime_error("Variable " + name + " already exists");
+        throw std::runtime_error("Variable '" + name + "' already exists");
 
     auto [it, inserted] = values.try_emplace(name, typeInfo, std::move(value));
     if (!inserted)
-        throw std::runtime_error("Variable " + name + " already exists");
+        throw std::runtime_error("Variable '" + name + "' already exists");
 }
 
 void Environment::defineReference(TypeInfo typeInfo, std::string name,

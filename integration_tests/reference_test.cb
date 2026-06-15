@@ -1,0 +1,7 @@
+void func(int a) {
+    a = 10        
+}
+
+int a = 3
+func(a)
+print(a)

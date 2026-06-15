@@ -1,0 +1,6 @@
+void func(int a) {
+
+    }
+
+flp b = 3.5
+func(b)

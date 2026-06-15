@@ -28,9 +28,11 @@ public:
 
         errors.push_back(std::move(error)); 
 
-        if (auto* errPtr = dynamic_cast<SyntaxError*>(errors.back().get())) 
-            if (errors.back()->getSeverity() != Severity::WARNING)
-                errors.back()->raise();
+        if (auto* errPtr = dynamic_cast<LexerError*>(errors.back().get())) 
+            return;
+
+        if (errors.back()->getSeverity() != Severity::WARNING)
+            errors.back()->raise();
     }
 private:
     std::vector<std::unique_ptr<LangError>> errors;

@@ -69,4 +69,5 @@ void ErrorPrinter::printErrors(std::ostream& os, const std::string& filename) co
                 << "). Stopping now...";
         reportError(os, m_errors[i], filename);
     }
+    os << std::endl;
 }

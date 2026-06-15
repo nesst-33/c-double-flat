@@ -384,18 +384,14 @@ TEST(ValueTests, concatOp) {
     Value expected1 = getArrayVal({1, 2, 3, 4, 5, 6});
     expectValue(result1 == expected1, true);
 
+    Value nestedArr = getArrayVal({getArrayVal({1, 2}), getArrayVal({3, 4})});
+    Value result2 = nestedArr.concatenate(Value("asdf"));
+    expectValue(result2, std::string("[[1, 2], [3, 4]]asdf"));
+
     expectValue(concatValues("asdf", "qwer"), std::string("asdfqwer"));
     expectValue(concatValues("asdf", 3), std::string("asdf3"));
     expectValue(concatValues("asdf", 3.5), std::string("asdf3.500000"));
     expectValue(concatValues("asdf", true), std::string("asdftrue"));
-}
-
-TEST(ValueTests, concatThrowsOnTypeMismatch) {
-    Value arr = getArrayVal({1, 2, 3});
-    EXPECT_THROW(arr.concatenate(Value(2)), std::runtime_error);
-    EXPECT_THROW(arr.concatenate(Value(2.5)), std::runtime_error);
-    EXPECT_THROW(arr.concatenate(Value("asdf")), std::runtime_error);
-    EXPECT_THROW(arr.concatenate(Value(true)), std::runtime_error);
 }
 
 TEST(ValueTests, splitOp) {
