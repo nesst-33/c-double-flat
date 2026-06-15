@@ -24,12 +24,12 @@ target_link_libraries(
 )
 
 add_executable(
-    interpreter_tests
-    interpreter_tests.cpp
+    value_tests
+    value_tests.cpp
 )
 
 target_link_libraries(
-    interpreter_tests
+    value_tests
     GTest::gtest_main
     InterpreterLib
 )
@@ -37,4 +37,4 @@ target_link_libraries(
 include(GoogleTest)
 gtest_discover_tests(lexer_tests)
 gtest_discover_tests(parser_tests)
-gtest_discover_tests(interpreter_tests)
+gtest_discover_tests(value_tests)

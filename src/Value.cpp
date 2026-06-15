@@ -122,12 +122,31 @@ Value Value::operator*(const Value& other) const {
     if (result)
         return *result;
 
-    auto leftNum = this->asNumber();
-    auto rightNum = other.asNumber();
+    return std::visit(overloaded{
+            // [](const std::string&, const std::string&) -> Value {
+            //     throw std::runtime_error("Cannot multiply two strings");
+            // }, 
+            //
+            // [&](const std::string& l, auto&&) {
+            //     int number = std::visit([&](auto&& num){return static_cast<int>(num); }, 
+            //             other.asNumber());
+            //     std::string result;
+            //     for (size_t i{}; i < number; i++)
+            //         result += l;
+            //
+            //     return Value(result);
+            // },
 
-    return std::visit([](auto&& l, auto&& r) {
-        return Value(l * r);
-    }, leftNum, rightNum);
+            [&](auto&&, auto&&) {
+                auto leftNum = this->asNumber();
+                auto rightNum = other.asNumber();
+                return std::visit([](auto&& l, auto&& r) {
+                    return Value(l * r);
+                }, leftNum, rightNum);
+            }
+
+
+    }, this->m_data, other.m_data);
 }
 
 Value Value::operator/(const Value& other) const {
@@ -152,6 +171,15 @@ Value Value::operator%(const Value& other) const {
 
         return Value(std::fmod(l, r));
     }, leftNum, rightNum);
+}
+
+bool Value::areEqualType(const Value& left, const Value& right) {
+    return std::visit(overloaded{
+            [](const std::shared_ptr<ArrayType>&, const std::shared_ptr<ArrayType>&) { return true; },
+            [](const std::shared_ptr<ArrayType>&, auto&&) { return false; },
+            [](auto&&, const std::shared_ptr<ArrayType>&) { return false; },
+            [](auto&&, auto&&) { return true; }
+    }, left.m_data, right.m_data);
 }
 
 Value Value::areEqualArrays(const std::shared_ptr<ArrayType>& left, 
@@ -208,6 +236,9 @@ Value Value::compareStrOrNum(const Value& left, const Value& right, CompareOp op
 
 template <typename CompareOp>
 Value Value::compareRelational(const Value& left, const Value& right, CompareOp op) {
+    // This code might seem non-optimal, but using std::visit would be even worse.
+    // I'd have to check for each disallowed type two times, which would be even
+    // less readable.
     if (std::holds_alternative<std::monostate>(left.m_data)
             || std::holds_alternative<std::monostate>(right.m_data))
         throw std::runtime_error("Cannot compare void");
@@ -223,7 +254,6 @@ Value Value::compareRelational(const Value& left, const Value& right, CompareOp 
     if (std::holds_alternative<std::shared_ptr<ICallable>>(left.m_data)
             || std::holds_alternative<std::shared_ptr<ICallable>>(right.m_data))
         throw std::runtime_error("Cannot compare functions");
-
 
     return compareStrOrNum(left, right, op);
 }
@@ -559,8 +589,8 @@ Value Value::split(const Value& other) const {
             return Value(std::move(tail));
         },
 
-        [](auto&&) -> Value {
-            throw std::runtime_error("You can only split arrays or strings");
+        [&](auto&&) {
+            return Value(this->asStr()).split(other);
         }
 
     }, m_data);
@@ -604,8 +634,8 @@ Value Value::intersection(const Value& other) const {
             return Value(std::move(result));
         },
 
-        [](auto&&, auto&&) -> Value {
-            throw std::runtime_error("Intersection only works on arrays or strings");
+        [&](auto&&, auto&&) {
+            return Value(this->asStr()).intersection(Value(other.asStr()));
         }
 
     }, m_data, other.m_data);
@@ -618,13 +648,8 @@ Value Value::append(const Value& other) const {
             Value rightVal = Value(std::make_shared<ArrayType>(rightArr));
             return this->concatenate(rightVal);
         },
-
-        [&](const std::string& str) {
-            return this->concatenate(other);
-        },
-
         [](auto&&) -> Value {
-            throw std::runtime_error("You can only append to arrays or strings");
+            throw std::runtime_error("You can only append to arrays");
         }
     }, m_data);
 }

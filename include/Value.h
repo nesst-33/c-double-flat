@@ -84,9 +84,7 @@ private:
     static Value areEqualArrays(const std::shared_ptr<ArrayType>& left, 
             const std::shared_ptr<ArrayType>& right);
     static Value areEqualBool(const Value& left, const Value& right);
-    static bool areEqualType(const Value& left, const Value& right) {
-        return left.m_data.index() == right.m_data.index();
-    }
+    static bool areEqualType(const Value& left, const Value& right);
 
     bool requiresCasting(BaseType type) const;
     BaseType getBaseType() const;
