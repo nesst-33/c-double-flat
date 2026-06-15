@@ -15,6 +15,30 @@ namespace {
     template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 }
 
+bool isValidNumericString(const std::string& str) {
+    if (str.empty()) return false;
+
+    // allowed characters inside a numeric string
+    std::string allowed = "0123456789.-+";
+    
+    if (str.find_first_not_of(allowed) != std::string::npos) {
+        return false; 
+    }
+
+    // there can only be one dot
+    size_t dotCount = std::count(str.begin(), str.end(), '.');
+    if (dotCount > 1) return false;
+
+    // no solitary dots and signs
+    if (str == "." || str == "-" || str == "+") return false;
+
+    // signs can only appear at the beginning
+    if (str.find('-') != std::string::npos && str.find('-') != 0) return false;
+    if (str.find('+') != std::string::npos && str.find('+') != 0) return false;
+
+    return true;
+}
+
 std::variant<int, double> Value::asNumber() const {
     return std::visit<std::variant<int, double>>(overloaded{
         [](int val) { return val; },
@@ -24,6 +48,10 @@ std::variant<int, double> Value::asNumber() const {
         [](bool val) { return val ? 1 : 0; },
 
         [](const std::string& val) -> std::variant<int, double> { 
+            if (!isValidNumericString(val))
+                throw std::runtime_error("Cannot convert string '" 
+                        + val + "' into a number type");
+
             try {
                 if (val.find('.') != std::string::npos)
                     return std::stod(val);
@@ -562,7 +590,7 @@ Value Value::concatenate(const Value& other) const {
             return Value(std::move(concatenated));
         },
 
-        [&](auto&&, auto&&) {
+        [&](auto, auto) {
             return Value(this->asStr() + other.asStr());
         }
     }, m_data, other.m_data);

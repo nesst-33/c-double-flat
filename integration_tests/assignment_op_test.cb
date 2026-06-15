@@ -1,0 +1,29 @@
+flp a = 3.5
+print(a)
+
+a += 4
+print(a)
+
+a -= "3.5"
+print(a)
+
+a *= 2
+print(a)
+
+a /= 2
+print(a)
+
+# This shouldn't change anything
+a ~= "34"
+print(a)
+
+a %= 3
+print(a)
+
+int b = 2137
+b ~= "85.3"
+print(b)
+
+print("Now there should be an error: ")
+b = "2a1b3c7a"
+
