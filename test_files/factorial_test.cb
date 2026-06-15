@@ -1,0 +1,17 @@
+int factorial(int n) {
+    if (n <= 1) {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+
+str analyze_permutations(arr str items) {
+    int size = items!
+    int permutations = factorial(size)
+    return "With " ~ size ~ " items, there are " \
+        ~ permutations ~ " possible permutations."
+}
+
+arr str team_members = ["Alice", "Bob", "Charlie", "Diana", "Eve"]
+str report = analyze_permutations(team_members)
+print(report)
