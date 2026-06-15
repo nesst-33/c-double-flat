@@ -1,10 +1,8 @@
 #include "Environment.h"
 #include <format>
-#include <iostream>
 #include <stdexcept>
 #include <variant>
 
-// QUESTION: should this be a Value class method?
 Value Environment::defaultInitialize(TypeInfo typeInfo) {
     if ( typeInfo.arrayDepth )
         throw std::runtime_error("Array variables have to be initialized on declaration");
@@ -24,27 +22,37 @@ Value Environment::defaultInitialize(TypeInfo typeInfo) {
 }
 
 void Environment::define(TypeInfo typeInfo, std::string name, Value value) {
+    if (m_references.contains(name))
+        throw std::runtime_error("Variable " + name + " already exists");
+
     BaseType type = typeInfo.type;
 
     // If there's an initializer:
-    if ( !std::holds_alternative<std::monostate>(value.getValue()) ) {
+    if ( !std::holds_alternative<std::monostate>(value.getValue()) )
         value = std::move(value.matchType(typeInfo));
-    }
     // If there's not:
-    else {
+    else 
         value = std::move(defaultInitialize(typeInfo));
-    }
 
-    // redefinition is allowed because it's better for a REPL
-    values[name] = VarInfo{typeInfo, std::move(value)};
+    auto [it, inserted] = values.try_emplace(name, typeInfo, std::move(value));
+    if (!inserted)
+        throw std::runtime_error("Variable " + name + " already exists");
 }
 
 void Environment::defineFunction(TypeInfo typeInfo, std::string name, Value value) {
-    values[name] = VarInfo{typeInfo, std::move(value)}; 
+    if (m_references.contains(name))
+        throw std::runtime_error("Variable " + name + " already exists");
+
+    auto [it, inserted] = values.try_emplace(name, typeInfo, std::move(value));
+    if (!inserted)
+        throw std::runtime_error("Variable " + name + " already exists");
 }
 
 void Environment::defineReference(TypeInfo typeInfo, std::string name,
         RefInfo refInfo) {
+    if (values.contains(name))
+        throw std::runtime_error("Variable " + name + " already exists");
+
     // Get a reference to TypeInfo and Value of the referenced variable
     if (!typeInfo.isConst && refInfo.type.isConst)
         throw std::runtime_error("Cannot make a non-const reference to a const variable");
