@@ -91,13 +91,13 @@ void Environment::assignIdentifier(const std::string& name, Value val) {
     throw std::runtime_error("Undefined variable: '" + name + "'");
 }
 
-void Environment::assignString(Value* valPtr, int idx, Value charVal) {
+void Environment::assignString(Value& valPtr, int idx, Value charVal) {
     charVal = charVal.castValue(BaseType::STR);
     std::string character = std::get<std::string>(charVal.getValue());
     if (character.size() != 1)
         throw std::runtime_error("You can only assign single characters to a string");
 
-    valPtr->modifyString(idx, character[0]);
+    valPtr.modifyString(idx, character[0]);
 }
 
 void Environment::assignArray(TypeInfo arrTypeInfo, Value lValArray, int idx, 
@@ -124,7 +124,7 @@ void Environment::assignArray(TypeInfo arrTypeInfo, Value lValArray, int idx,
     }
 }
 
-void Environment::assignArrayOrStr(Value lValArray, Value idxVal, Value assignedVal, Identifier* idNode) {
+void Environment::assignArrayOrStr(Value& lValArray, Value idxVal, Value assignedVal, Identifier* idNode) {
     const std::string& name = idNode->getName();
     int idx = idxVal.getIndex();
 
@@ -144,8 +144,9 @@ void Environment::assignArrayOrStr(Value lValArray, Value idxVal, Value assigned
         if (typeInfoPtr->isConst) 
             throw std::runtime_error("Variable '" + name + "' is immutable");
 
+        
         if (typeInfoPtr->arrayDepth == 0 && typeInfoPtr->type == BaseType::STR) 
-            return assignString(valPtr, idx, assignedVal);
+            return assignString(*valPtr, idx, assignedVal);
         else if (typeInfoPtr->arrayDepth == 0)
             throw std::runtime_error("Variable '" + name 
                     + "' doesn't support index assignment");

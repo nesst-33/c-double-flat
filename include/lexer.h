@@ -73,7 +73,7 @@ private:
     Token buildString(char quoteType, Position startPos);
     
     char handleEscapeSeq(Position startPos);
-    double buildDecimal(int digits);
+    double buildDecimal(Position startPos, int digits);
     void clearWhitespace();
 
     Token extractToken();

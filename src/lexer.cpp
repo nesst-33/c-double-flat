@@ -129,8 +129,17 @@ Token Lexer::buildNumber(char character, Position startPos)
     // Needed to calculate the number of digits to avoid needless reading of flp decimal expansion digits
     int digits{1}; 
 
-    while (std::isdigit(m_input.peek()))
+    while (std::isdigit(m_input.peek()) || m_input.peek() == '\'')
     {
+        if (m_input.peek() == '\'') 
+        {
+            getChar(); 
+            
+            if (!std::isdigit(m_input.peek())) 
+                throw LexerException("Invalid numeric separator placement", startPos);
+            continue; 
+        }
+
         if (total > std::numeric_limits<int>::max() / 10)
             throw LexerException("Integer literal exceeds INT_MAX", startPos);
         total *= 10;
@@ -146,20 +155,31 @@ Token Lexer::buildNumber(char character, Position startPos)
     if (m_input.peek() == '.')
     {
         getChar();
-        double flp_total = total + buildDecimal(digits);
+        double flp_total = total + buildDecimal(startPos, digits);
         return Token(TokenType::FLP_VALUE_T, startPos, flp_total);
     }
     return Token(TokenType::INT_VALUE_T, startPos, total);
 }
 
 
-double Lexer::buildDecimal(int digits = 0)
+double Lexer::buildDecimal(Position startPos, int digits = 0)
 {
     double decimalExpansion {0.0};
     double divisor {10.0};
+    if (m_input.peek() == '\'')
+        throw LexerException("Decimal part cannot start with a separator", startPos);
 
-    while (std::isdigit(m_input.peek()))
+    while (std::isdigit(m_input.peek()) || m_input.peek() == '\'')
     {
+        if (m_input.peek() == '\'') 
+        {
+            getChar(); 
+            
+            if (!std::isdigit(m_input.peek())) 
+                throw LexerException("Invalid numeric separator placement", startPos);
+                
+            continue; 
+        }
         char nextDigit = getChar();
 
         // We don't need to read any more digits after we hit the limit of accurate
@@ -363,7 +383,7 @@ Token Lexer::extractToken()
         // For building flp values that start with . (like .314)
         case '.':
             if (std::isdigit(m_input.peek()))
-                return Token(TokenType::FLP_VALUE_T, startPos, buildDecimal());
+                return Token(TokenType::FLP_VALUE_T, startPos, buildDecimal(startPos));
 
         default:
             if (std::isdigit(character)) 

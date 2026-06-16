@@ -28,12 +28,12 @@ public:
             RefInfo refInfo);
     void defineFunction(TypeInfo typeInfo, std::string name, Value value);
     void assignIdentifier(const std::string& name, Value val);
-    void assignArrayOrStr(Value lValArray, Value idxVal, Value assignedVal, Identifier* idNode);
+    void assignArrayOrStr(Value& lValArray, Value idxVal, Value assignedVal, Identifier* idNode);
     Value get(const std::string& name) const;
     RefInfo getRefInfo(const std::string& name);
 
 private:
-    void assignString(Value* valPtr, int idx, Value charVal);
+    void assignString(Value& valPtr, int idx, Value charVal);
     void assignArray(TypeInfo arrTypeInfo, Value lValArray, int idx,
             Value assignedVal);
     static Value defaultInitialize(TypeInfo typeInfo);

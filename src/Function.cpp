@@ -1,5 +1,6 @@
 #include "Function.h"
 #include <stdexcept>
+#include <variant>
 
 // template<class... Ts>
 // struct overloaded : Ts... { using Ts::operator()...; };
@@ -27,11 +28,16 @@ Value Function::call(Interpreter& interpreter,
     if (interpreter.isReturning()) {
         interpreter.setReturning(false);
 
-        if (expectedType.type == BaseType::VOID)
-            throw std::runtime_error("Void function cannot return a value");
-
         Value retValue = std::move(interpreter.getReturnValue());
-        return retValue.matchType(expectedType);
+
+        if (!std::holds_alternative<std::monostate>(retValue.getValue())) {
+            if (expectedType.type == BaseType::VOID)
+                throw std::runtime_error("Void function cannot return a value");
+            else
+                return retValue.matchType(expectedType);
+        }
+                
+        return Value();
     }
 
     if (expectedType.type != BaseType::VOID) {
