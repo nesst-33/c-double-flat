@@ -1,19 +1,14 @@
 void draw_mandelbrot() {
-    # Standard terminal size (adjusted for terminal font aspect ratio)
     int width = 78
     int height = 36
     int max_iter = 30
 
-    # The mathematical boundaries of the Mandelbrot Set
     flp re_start = -2.0
     flp re_end = 1.0
     flp im_start = -1.0
     flp im_end = 1.0
-
-    # Our ASCII "color" palette, from dark to light
-    arr str chars = [".", "-", ":", "*", "+", "=", "%", "@", "#"]
     
-    # Your postfix cardinality operator retrieves the array size
+    arr str chars = [".", "-", ":", "*", "+", "=", "%", "@", "
     int char_count = chars!
 
     int y = 0
@@ -21,33 +16,25 @@ void draw_mandelbrot() {
         str row_str = ""
         int x = 0
 
-        # Map the current Y pixel to the imaginary axis
-        # We use your 'as flp' postfix rule to safely divide integers!
         flp c_im = im_start + ((y as flp) / (height as flp)) * (im_end - im_start)
 
         while (x < width) {
-            # Map the current X pixel to the real axis
+            
             flp c_re = re_start + ((x as flp) / (width as flp)) * (re_end - re_start)
-
-            # Starting point for Z
+            
             flp z_re = 0.0
             flp z_im = 0.0
             int iter = 0
             bool escaped = false
 
-            # The engine: Z = Z^2 + C
             while (iter < max_iter and not escaped) {
                 flp z_re_sq = z_re * z_re
                 flp z_im_sq = z_im * z_im
 
-                # If the radius exceeds 2 (squared is 4), it escapes to infinity
                 if (z_re_sq + z_im_sq > 4.0) {
                     escaped = true
                 } else {
-                    # Calculate the new imaginary component first!
                     flp new_z_im = 2.0 * z_re * z_im + c_im
-                    
-                    # Calculate new real component
                     z_re = z_re_sq - z_im_sq + c_re
                     z_im = new_z_im
                     
@@ -55,12 +42,9 @@ void draw_mandelbrot() {
                 }
             }
 
-            # Decide which character to draw for this pixel
             if (not escaped) {
-                # Point is completely inside the set (drawn as empty space)
                 row_str ~= " "
             } else {
-                # The point escaped! Use the iteration count to pick an ASCII shade
                 int idx = iter % char_count
                 row_str ~= chars[idx]
             }
@@ -68,7 +52,6 @@ void draw_mandelbrot() {
             x += 1
         }
 
-        # Print the assembled row to the terminal
         print(row_str)
         y += 1
     }
