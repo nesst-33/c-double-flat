@@ -1,6 +1,7 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include "ErrorHandler.h"
 #include "Token.h"
 #include <iostream>
 #include <deque>
@@ -13,7 +14,7 @@ class LexerException : public std::runtime_error
 {
 public:
     LexerException(const std::string& msg, Position pos)
-        : std::runtime_error("Lexer Error: " + msg), m_pos(pos) {}
+        : std::runtime_error(msg), m_pos(pos) {}
     Position getPosition() const { return m_pos; }
 private:
     Position m_pos;
@@ -46,11 +47,13 @@ private:
 class Lexer : public ILexer
 {
 public:
-    Lexer(std::istream& input) : m_input(input) {}
+    Lexer(std::istream& input, ErrorHandler& errHandler) 
+        : m_input(input), m_errHandler(errHandler) {}
     Position getPosition() const override { return currentPos; }
     Token getToken() override;
 
 private:
+    ErrorHandler& m_errHandler;
     std::istream& m_input;
     std::string m_buffer{};
     Position currentPos{1, 0, -1};
@@ -70,8 +73,10 @@ private:
     Token buildString(char quoteType, Position startPos);
     
     char handleEscapeSeq(Position startPos);
-    double buildDecimal(int digits);
+    double buildDecimal(Position startPos, int digits);
     void clearWhitespace();
+
+    Token extractToken();
 
     static const std::unordered_map<std::string_view, TokenType> keyword_map; 
     static const std::unordered_map<std::string_view, TokenType> operator_map;

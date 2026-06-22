@@ -1,0 +1,17 @@
+int mult(int a, int b) {
+    return a * b
+}
+
+arr int nestedMult(arr int a, int b) {
+    return a[mult(_, b)] 
+}
+
+arr int test1 = [1, 2, 3]
+print("test1 before function mapping:\t" ~ test1)
+print("test1 with function mapped:\t" ~ test1[mult(_, 4)])
+
+arr arr int nested = [[1, 2], [3, 4]]
+print("Nested function map:\t\t" ~ nested[nestedMult(_, 3)])
+
+# This should throw an error (there's a type mismatch)
+print(nested[mult(_, 3)])

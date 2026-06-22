@@ -32,7 +32,8 @@ void expectDoubleToken(Lexer& lexer, double expectedVal)
 TEST(BasicLexerTests, ParsesSingleCharOperators)
 {
     std::istringstream input("+ - * / % ~ < > = ! : & , ( ) { } [ ]"); 
-    Lexer lexer(input); // TODO: różne leksery na każdy operator + EOF
+    ErrorHandler errHandler;
+    Lexer lexer(input, errHandler); // TODO: różne leksery na każdy operator + EOF
 
     EXPECT_EQ(lexer.getToken().type, TokenType::PLUS_T);
     EXPECT_EQ(lexer.getToken().type, TokenType::MINUS_T);
@@ -59,7 +60,8 @@ TEST(BasicLexerTests, ParsesSingleCharOperators)
 TEST(BasicLexerTests, ParsesDoubleCharOperators)
 {
     std::istringstream input("+= -= *= /= %= ~= << >> <= >= == !="); 
-    Lexer lexer(input);
+    ErrorHandler errHandler;
+    Lexer lexer(input, errHandler);
 
     EXPECT_EQ(lexer.getToken().type, TokenType::ADD_ASSIGN_T);
     EXPECT_EQ(lexer.getToken().type, TokenType::SUB_ASSIGN_T);
@@ -79,7 +81,8 @@ TEST(BasicLexerTests, ParsesDoubleCharOperators)
 TEST(BasicLexerTests, ParsesKeywords) 
 {
     std::istringstream input("if else while const as and or not void int flp str arr return true false bool");
-    Lexer lexer(input);
+    ErrorHandler errHandler;
+    Lexer lexer(input, errHandler);
 
     EXPECT_EQ(lexer.getToken().type, TokenType::IF_T);
     EXPECT_EQ(lexer.getToken().type, TokenType::ELSE_T);
@@ -103,7 +106,7 @@ TEST(BasicLexerTests, ParsesKeywords)
 TEST(BasicLexerTests, ParsesIdentifiers) 
 {
     std::istringstream input("myVar _hiddenVar value_123 IF RETURN 1bad_name");
-    Lexer lexer(input);
+    ErrorHandler errHandler; Lexer lexer(input, errHandler);
 
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "myVar");
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "_hiddenVar");
@@ -117,7 +120,7 @@ TEST(BasicLexerTests, ParsesIdentifiers)
 TEST(BasicLexerTests, ParsesIntegers)
 {
     std::istringstream input("0 42 99999");
-    Lexer lexer(input);
+    ErrorHandler errHandler; Lexer lexer(input, errHandler);
 
     expectIntToken(lexer, 0);
     expectIntToken(lexer, 42);
@@ -128,7 +131,7 @@ TEST(BasicLexerTests, ParsesFlp)
 {
     // TODO: add tests for big flp
     std::istringstream input("3.14 0.0001 42. .31");
-    Lexer lexer(input);
+    ErrorHandler errHandler; Lexer lexer(input, errHandler);
 
     expectDoubleToken(lexer, 3.14);
     expectDoubleToken(lexer, 0.0001);
@@ -139,7 +142,7 @@ TEST(BasicLexerTests, ParsesFlp)
 TEST(BasicLexerTests, ParsesStandardStrings)
 {
     std::istringstream input("\"Hello World\" 'Single Quotes'");
-    Lexer lexer(input);
+    ErrorHandler errHandler; Lexer lexer(input, errHandler);
 
     expectStringToken(lexer, TokenType::STR_VALUE_T, "Hello World");
     expectStringToken(lexer, TokenType::STR_VALUE_T, "Single Quotes");
@@ -148,7 +151,7 @@ TEST(BasicLexerTests, ParsesStandardStrings)
 TEST(BasicLexerTests, ParsesEmptyStrings)
 {
     std::istringstream input ("\"\" ''");
-    Lexer lexer(input);
+    ErrorHandler errHandler; Lexer lexer(input, errHandler);
     expectStringToken(lexer, TokenType::STR_VALUE_T, "");
     expectStringToken(lexer, TokenType::STR_VALUE_T, "");
 }
@@ -157,7 +160,7 @@ TEST(BasicLexerTests, ParsesStringEscapeSequences)
 {
     // String in code: "Line1\nLine2\t\"quote\""
     std::istringstream input("\"Line1\\nLine2\\t\\\"quote\\\"\"");
-    Lexer lexer(input);
+    ErrorHandler errHandler; Lexer lexer(input, errHandler);
 
     expectStringToken(lexer, TokenType::STR_VALUE_T, "Line1\nLine2\t\"quote\"");
 }
@@ -165,7 +168,7 @@ TEST(BasicLexerTests, ParsesStringEscapeSequences)
 TEST(BasicLexerTests, SkipsWhitespaceButNotNewline)
 {
     std::istringstream input("    \t x \n    \t y\n");
-    Lexer lexer(input);
+    ErrorHandler errHandler; Lexer lexer(input, errHandler);
 
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "x");
     EXPECT_EQ(lexer.getToken().type, TokenType::NEWLINE_T);
@@ -178,7 +181,7 @@ TEST(BasicLexerTests, HandlesComments)
 {
     // TODO: Sprawdzić czy działa brak nowej linii po komentarzu
     std::istringstream input("x = 5 # Ciekawy komentarz 3 * 5\ny = 10");
-    Lexer lexer(input);
+    ErrorHandler errHandler; Lexer lexer(input, errHandler);
 
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "x");
     EXPECT_EQ(lexer.getToken().type, TokenType::ASSIGN_T);
@@ -196,7 +199,7 @@ TEST(BasicLexerTests, TracksPositions)
 {
     std::istringstream input("x = 5\n  y = 10");
                 // offsets:   012345-678
-    Lexer lexer(input);
+    ErrorHandler errHandler; Lexer lexer(input, errHandler);
 
     Token t1 = lexer.getToken(); // 'x'
     EXPECT_EQ(t1.position.line, 1);
@@ -216,7 +219,7 @@ TEST(BasicLexerTests, TracksPositions)
 TEST(BasicLexerTests, HandlesLineContinuation)
 {
     std::istringstream input("x=5 \\\n      \\\n + 2");
-    Lexer lexer(input);
+    ErrorHandler errHandler; Lexer lexer(input, errHandler);
 
     expectStringToken(lexer, TokenType::IDENTIFIER_T, "x");
     EXPECT_EQ(lexer.getToken().type, TokenType::ASSIGN_T);
@@ -230,7 +233,7 @@ TEST(BasicLexerTests, HandlesLineContinuation)
 TEST(BasicLexerTests, HandlesUnknownChars)
 {
     std::istringstream input("@ $ ^");
-    Lexer lexer(input);
+    ErrorHandler errHandler; Lexer lexer(input, errHandler);
 
     expectStringToken(lexer, TokenType::UNKNOWN, "@");
     expectStringToken(lexer, TokenType::UNKNOWN, "$");
@@ -242,7 +245,8 @@ TEST(BasicLexerTests, HandlesUnknownChars)
 TEST(LexerThrowTests, ThrowsStrayBacklash)
 {
     std::istringstream input("x = 5 \\ + 2");
-    Lexer lexer(input);
+    ErrorHandler errHandler;
+    Lexer lexer(input, errHandler);
 
     for (int i{}; i < 3; i++) lexer.getToken();
 
@@ -252,7 +256,8 @@ TEST(LexerThrowTests, ThrowsStrayBacklash)
 TEST(LexerThrowTests, ThrowsBacklashBeforeEOF)
 {
     std::istringstream input("abcd\nab\\");
-    Lexer lexer(input);
+    ErrorHandler errHandler;
+    Lexer lexer(input, errHandler);
 
     for (int i{}; i < 3; i++) lexer.getToken();
 
@@ -263,13 +268,15 @@ TEST(LexerThrowTests, ThrowsLongIdentifier)
 {
     std::string longId(255, 'a');
     std::istringstream input(longId);
-    Lexer lexer(input);
+    ErrorHandler errHandler;
+    Lexer lexer(input, errHandler);
 
     EXPECT_NO_THROW(lexer.getToken());
 
     std::string longerId(256, 'a');
     std::istringstream input2(longerId);
-    Lexer lexer2(input2);
+    ErrorHandler errHandler2;
+    Lexer lexer2(input2, errHandler2);
 
     EXPECT_THROW(lexer2.getToken(), LexerException);
 }
@@ -277,7 +284,8 @@ TEST(LexerThrowTests, ThrowsLongIdentifier)
 TEST(LexerThrowTests, ThrowsUnterminatedLiteral)
 {
     std::istringstream input("'there is no end to unit test hell");
-    Lexer lexer(input);
+    ErrorHandler errHandler;
+    Lexer lexer(input, errHandler);
     
     EXPECT_THROW(lexer.getToken(), LexerException);
 }
@@ -285,14 +293,16 @@ TEST(LexerThrowTests, ThrowsUnterminatedLiteral)
 TEST(LexerThrowTests, ThrowsNewlineInString)
 {
     std::istringstream input("'do not break\nit up'");
-    Lexer lexer(input);
+    ErrorHandler errHandler;
+    Lexer lexer(input, errHandler);
     EXPECT_THROW(lexer.getToken(), LexerException);
 }
 
 TEST(LexerThrowTests, ThrowsEOFEscapeSeq)
 {
     std::istringstream input("'A melodia się urywa niby Hejnał Mariacki\\");
-    Lexer lexer(input);
+    ErrorHandler errHandler;
+    Lexer lexer(input, errHandler);
     EXPECT_THROW(lexer.getToken(), LexerException);
 }
 
@@ -302,7 +312,8 @@ TEST(LexerIntegrationTests, ProcessesSampleSourceFile)
     std::ifstream testFile("../../tests/test.txt", std::ios::in | std::ios::binary);
     ASSERT_TRUE(testFile.is_open());
     
-    Lexer lexer(testFile);
+    ErrorHandler errHandler;
+    Lexer lexer(testFile, errHandler);
 
     // --- LINE 1 ---
     expectStringToken(lexer, TokenType::COMMENT_T, "# TEST INTEGRACYJNY NR 1");

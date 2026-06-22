@@ -1,0 +1,743 @@
+#include "Value.h"
+#include <algorithm>
+#include <ios>
+#include <iostream>
+#include <memory>
+#include <optional>
+#include <sstream>
+#include <stdexcept>
+#include <cmath>
+#include <string>
+#include <utility>
+#include <variant>
+
+namespace {
+    template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+}
+
+bool isValidNumericString(const std::string& str) {
+    if (str.empty()) return false;
+
+    // allowed characters inside a numeric string
+    std::string allowed = "0123456789.-+";
+    
+    if (str.find_first_not_of(allowed) != std::string::npos) {
+        return false; 
+    }
+
+    // there can only be one dot
+    size_t dotCount = std::count(str.begin(), str.end(), '.');
+    if (dotCount > 1) return false;
+
+    // no solitary dots and signs
+    if (str == "." || str == "-" || str == "+") return false;
+
+    // signs can only appear at the beginning
+    if (str.find('-') != std::string::npos && str.find('-') != 0) return false;
+    if (str.find('+') != std::string::npos && str.find('+') != 0) return false;
+
+    return true;
+}
+
+std::variant<int, double> Value::asNumber() const {
+    return std::visit<std::variant<int, double>>(overloaded{
+        [](int val) { return val; },
+
+        [](double val) { return val; },
+
+        [](bool val) { return val ? 1 : 0; },
+
+        [](const std::string& val) -> std::variant<int, double> { 
+            if (!isValidNumericString(val))
+                throw std::runtime_error("Cannot convert string '" 
+                        + val + "' into a number type");
+
+            try {
+                if (val.find('.') != std::string::npos)
+                    return std::stod(val);
+                return std::stoi(val);
+            } catch (std::invalid_argument& e) {
+                throw std::runtime_error("Cannot convert string '" 
+                        + val + "' into a number type");
+            } catch (std::out_of_range& e) {
+                throw std::runtime_error("Cannot convert string '" 
+                        + val + "' into a number type - value is out of range");
+            }
+        },
+
+        [](const auto& unsupported) -> std::variant<int, double> {
+            throw std::runtime_error("Cannot convert this type to a number");
+        }
+
+    }, m_data);
+}
+
+Value Value::operator+(const Value& other) const {
+    auto leftNum = this->asNumber();
+    auto rightNum = other.asNumber();
+
+    return std::visit([](auto&& l, auto&& r) {
+        return Value(l + r);
+    }, leftNum, rightNum);
+}
+
+Value Value::operator-(const Value& other) const {
+    std::optional<Value> result = std::visit(overloaded{
+
+            [](const std::shared_ptr<ArrayType>& l,
+                    const std::shared_ptr<ArrayType>& r) -> std::optional<Value> {
+                ArrayType resultArr;
+                resultArr.reserve(l->size());
+
+                for (const auto& item : *l) {
+                    auto it = std::find_if(r->begin(), r->end(), [&](const Value& rightItem) {
+                        return (rightItem == item).asBool();
+                    });
+                    if (it == r->end())
+                        resultArr.push_back(item);
+                }
+                resultArr.shrink_to_fit();
+                return Value(make_shared<ArrayType>(resultArr));
+            },
+
+            [](auto&&, auto&&) -> std::optional<Value> { return std::nullopt; }
+
+    }, this->m_data, other.m_data);
+
+    if (result)
+        return *result;
+
+    auto leftNum = this->asNumber();
+    auto rightNum = other.asNumber();
+
+    return std::visit([](auto&& l, auto&& r) {
+        return Value(l - r);
+    }, leftNum, rightNum);
+}
+
+Value Value::multiplyArray(const std::shared_ptr<ArrayType>& arr, int mult) {
+    if (mult <= 0)
+        throw std::runtime_error("Cannot mulitply an array by a non-positive number");
+
+    ArrayType resultArr;
+    resultArr.reserve(arr->size() * mult);
+
+    for (size_t i{}; i < mult; i++)
+        resultArr.insert(resultArr.end(), arr->begin(), arr->end());
+
+    return Value(std::make_shared<ArrayType>(resultArr));
+}
+
+Value Value::operator*(const Value& other) const {
+    std::optional<Value> result = std::visit(overloaded{
+            [](const std::shared_ptr<ArrayType>&,
+                    const std::shared_ptr<ArrayType>&) -> std::optional<Value> {
+                throw std::runtime_error("Cannot multiply two arrays");
+            },
+
+            [&](const std::shared_ptr<ArrayType>& arr,
+                    auto&&) -> std::optional<Value> { 
+                return multiplyArray(arr, other.asInt()); 
+            },
+
+            [&](auto&&, const std::shared_ptr<ArrayType>& arr) -> std::optional<Value> {
+                return multiplyArray(arr, this->asInt());
+            },
+
+            [](auto&&, auto&&) -> std::optional<Value> { return std::nullopt; }
+        
+    }, this->m_data, other.m_data);
+
+    if (result)
+        return *result;
+
+    return std::visit(overloaded{
+            // [](const std::string&, const std::string&) -> Value {
+            //     throw std::runtime_error("Cannot multiply two strings");
+            // }, 
+            //
+            // [&](const std::string& l, auto&&) {
+            //     int number = std::visit([&](auto&& num){return static_cast<int>(num); }, 
+            //             other.asNumber());
+            //     std::string result;
+            //     for (size_t i{}; i < number; i++)
+            //         result += l;
+            //
+            //     return Value(result);
+            // },
+
+            [&](auto&&, auto&&) {
+                auto leftNum = this->asNumber();
+                auto rightNum = other.asNumber();
+                return std::visit([](auto&& l, auto&& r) {
+                    return Value(l * r);
+                }, leftNum, rightNum);
+            }
+
+
+    }, this->m_data, other.m_data);
+}
+
+Value Value::operator/(const Value& other) const {
+    auto leftNum = this->asNumber();
+    auto rightNum = other.asNumber();
+
+    return std::visit([](auto&& l, auto&& r) {
+        if (!r)
+            throw std::runtime_error("Cannot divide by zero");
+
+        return Value(static_cast<double>(l) / r);
+    }, leftNum, rightNum);
+}
+
+Value Value::operator%(const Value& other) const {
+    auto leftNum = this->asNumber();
+    auto rightNum = other.asNumber();
+
+    return std::visit([](auto&&l , auto&& r) {
+        if (!r)
+            throw std::runtime_error("Modulus divisor cannot be zero");
+
+        return Value(std::fmod(l, r));
+    }, leftNum, rightNum);
+}
+
+bool Value::areEqualType(const Value& left, const Value& right) {
+    return std::visit(overloaded{
+            [](const std::shared_ptr<ArrayType>&, const std::shared_ptr<ArrayType>&) { return true; },
+            [](const std::shared_ptr<ArrayType>&, auto&&) { return false; },
+            [](auto&&, const std::shared_ptr<ArrayType>&) { return false; },
+            [](auto&&, auto&&) { return true; }
+    }, left.m_data, right.m_data);
+}
+
+Value Value::areEqualArrays(const std::shared_ptr<ArrayType>& left, 
+        const std::shared_ptr<ArrayType>& right) {
+    if (left->size() != right->size())
+        return Value(false);
+
+    for (size_t i{}; i < left->size(); i++) {
+        const auto& leftArrElement = left->at(i);
+        const auto& rightArrElement = right->at(i);
+
+        if ( !areEqualType(leftArrElement, rightArrElement) )
+            return Value(false);
+
+        if ( auto* leftNestedArrPtr = std::get_if<std::shared_ptr<ArrayType>>(&leftArrElement.m_data) ) {
+            const auto& rightNestedArr = std::get<std::shared_ptr<ArrayType>>(rightArrElement.m_data);
+
+            Value areArrsEqual = areEqualArrays(*leftNestedArrPtr, rightNestedArr);
+
+            if (!std::get<bool>(areArrsEqual.m_data))
+                return areArrsEqual;
+        }
+        else {
+            Value arePrimitivesEqual = (leftArrElement == rightArrElement);
+            if (!std::get<bool>(arePrimitivesEqual.m_data))
+                return arePrimitivesEqual;
+        }
+    }
+    return Value(true);
+}
+
+Value Value::areEqualBool(const Value& left, const Value& right) {
+    bool leftVal = left.asBool();
+    bool rightVal = right.asBool();
+    return Value(leftVal == rightVal);
+}
+
+template <typename CompareOp>
+Value Value::compareStrOrNum(const Value& left, const Value& right, CompareOp op) {
+    if (auto* strL = std::get_if<std::string>(&left.m_data)) {
+        if (auto* strR = std::get_if<std::string>(&right.m_data)) {
+            return Value(op(*strL, *strR));
+        }
+    }
+
+    auto leftNum = left.asNumber();
+    auto rightNum = right.asNumber();
+
+    return std::visit([op](auto&& l, auto&& r) {
+        return Value(op(l, r));
+    }, leftNum, rightNum);
+
+}
+
+template <typename CompareOp>
+Value Value::compareRelational(const Value& left, const Value& right, CompareOp op) {
+    // This code might seem non-optimal, but using std::visit would be even worse.
+    // I'd have to check for each disallowed type two times, which would be even
+    // less readable.
+    if (std::holds_alternative<std::monostate>(left.m_data)
+            || std::holds_alternative<std::monostate>(right.m_data))
+        throw std::runtime_error("Cannot compare void");
+
+    if (std::holds_alternative<bool>(left.m_data)
+            || std::holds_alternative<bool>(right.m_data))
+        throw std::runtime_error("Cannot compare booleans");
+
+    if (std::holds_alternative<std::shared_ptr<ArrayType>>(left.m_data)
+            || std::holds_alternative<std::shared_ptr<ArrayType>>(right.m_data))
+        throw std::runtime_error("Cannot compare arrays");
+
+    if (std::holds_alternative<std::shared_ptr<ICallable>>(left.m_data)
+            || std::holds_alternative<std::shared_ptr<ICallable>>(right.m_data))
+        throw std::runtime_error("Cannot compare functions");
+
+    return compareStrOrNum(left, right, op);
+}
+
+Value Value::compareEquality(const Value& left, const Value& right) {
+    if (std::holds_alternative<std::monostate>(left.m_data)
+            || std::holds_alternative<std::monostate>(right.m_data))
+        throw std::runtime_error("Cannot compare void");
+
+    if (std::holds_alternative<std::shared_ptr<ICallable>>(left.m_data)
+            || std::holds_alternative<std::shared_ptr<ICallable>>(right.m_data))
+        throw std::runtime_error("Cannot compare functions");
+
+    if (auto* arrL = std::get_if<std::shared_ptr<ArrayType>>(&left.m_data)) {
+        if (auto* arrR = std::get_if<std::shared_ptr<ArrayType>>(&right.m_data)) {
+            return areEqualArrays(*arrL, *arrR);
+        }
+    }
+
+    if (std::holds_alternative<bool>(left.m_data)
+            || std::holds_alternative<bool>(right.m_data)) {
+        return areEqualBool(left, right); 
+    }
+
+    return compareStrOrNum(left, right, [](auto&& l, auto&& r) { return l == r; });
+}
+
+Value Value::operator<(const Value& other) const {
+    return compareRelational(*this, other, [](auto&& l, auto&& r) { return l < r; });
+}
+
+Value Value::operator>(const Value& other) const {
+    return compareRelational(*this, other, [](auto&& l, auto&& r) { return l > r; });
+}
+
+Value Value::operator<=(const Value& other) const {
+    return compareRelational(*this, other, [](auto&& l, auto&& r) { return l <= r; });
+}
+
+Value Value::operator>=(const Value& other) const {
+    return compareRelational(*this, other, [](auto&& l, auto&& r) { return l >= r; });
+}
+
+Value Value::operator==(const Value& other) const {
+    return compareEquality(*this, other);
+}
+
+Value Value::operator!=(const Value& other) const {
+    bool result = std::get<bool>(compareEquality(*this, other).m_data);
+    return Value(!result);
+}
+
+std::ostream& operator<<(std::ostream& os, const Value& val) {
+    os << std::boolalpha;
+    std::visit(overloaded{
+        [&os](std::monostate) { os << "void"; },
+
+        [&os](const std::shared_ptr<Value::ArrayType>& arr) {
+            os << "[";
+            for (size_t i{}; i < arr->size() - 1; i++)
+                os << arr->at(i) << ", "; 
+            os << arr->back();
+            os << "]";
+        },
+
+        [&os](const std::shared_ptr<ICallable>& func) { os << func->toString(); },
+
+        [&os](const auto& v) { os << v; }
+    }, val.m_data);
+    os << std::noboolalpha;
+
+    return os;
+}
+
+int Value::asInt() const { 
+    return std::visit( [](auto v) {
+        return static_cast<int>(v);
+    }, this->asNumber());
+}
+
+double Value::asFlp() const {
+    return std::visit( [](auto v) {
+        return static_cast<double>(v);
+    }, this->asNumber());
+}
+
+bool Value::asBool() const {
+    return std::visit(overloaded{
+        [](const std::string& val) {
+            return !val.empty();
+        },
+        
+        [](std::monostate) -> bool {
+            throw std::runtime_error("Cannot convert void to boolean");
+        },
+
+        [](const std::shared_ptr<ArrayType>&) -> bool {
+            throw std::runtime_error("Cannot convert array to boolean");
+        },
+
+        [](const std::shared_ptr<ICallable>&) -> bool {
+            throw std::runtime_error("Cannot convert a function identifier to boolean");
+        },
+
+        [](bool val) { return val; },
+
+        [](auto val) {
+            return val != 0;
+        }
+    }, m_data);
+}
+
+std::string Value::asStr() const {
+    return std::visit(overloaded{
+        [](std::monostate) -> std::string {
+            throw std::runtime_error("Cannot convert void to string");
+        },
+
+        [&](const std::shared_ptr<ArrayType>&) {
+            std::ostringstream result;
+            result << *this;   
+            return result.str();
+            // throw std::runtime_error("Cannot convert array to string");
+        },
+
+        [](const std::shared_ptr<ICallable>&) -> std::string {
+            throw std::runtime_error("Cannot convert function identifier to string");
+        },
+
+        [](std::string val) { return val; },
+
+        [](bool val) -> std::string {
+            return val ? "true" : "false";
+        },
+
+        [](auto val) {
+            return std::to_string(val);
+        }
+
+    }, m_data);
+}
+
+BaseType Value::getBaseType() const {
+    return std::visit(overloaded{
+        [](const std::string&) { return BaseType::STR; },
+        [](int) { return BaseType::INT; },
+        [](double) { return BaseType::FLP; },
+        [](bool) { return BaseType::BOOL; },
+        [](auto&&) -> BaseType {
+            throw std::runtime_error("Value is not a primitive");
+        }
+    }, m_data);
+}
+    
+bool Value::requiresCasting(BaseType type) const {
+    if (m_isConst)
+        return true;
+    // This method is for checking if we actually need to create a casted deep copy
+    if (const auto* arr = std::get_if<std::shared_ptr<ArrayType>>(&m_data)) {
+        for (const auto& val : **arr) {
+            if (val.requiresCasting(type))
+                return true;
+        }
+        return false;
+    } 
+
+    return this->getBaseType() != type;
+}
+
+Value Value::castValue(BaseType type) const {
+    if (!this->requiresCasting(type))
+        return *this;
+
+    if (const auto* arr = std::get_if<std::shared_ptr<ArrayType>>(&m_data)) {
+        auto newArr = std::make_shared<ArrayType>();
+        for (const auto& val : **arr) {
+            newArr->push_back(val.castValue(type));
+        }
+        return Value(std::move(newArr));
+    }
+    else {
+        switch(type) {
+            case BaseType::INT:
+                return Value(this->asInt());
+            case BaseType::FLP:
+                return Value(this->asFlp());
+            case BaseType::BOOL:
+                return Value(this->asBool());
+            case BaseType::STR:
+                return Value(this->asStr());
+            default:
+                throw std::runtime_error("Cannot cast void values");
+        }
+    }
+}
+
+int Value::getDepth() const {
+    if (auto* arrPtr = std::get_if<std::shared_ptr<ArrayType>>(&m_data)) {
+        const auto& arr = **arrPtr;
+        if (arr.empty())
+            return 1;
+
+        int expectedDepth{-1}; 
+        for (const auto& element: arr) {
+            int currentDepth = element.getDepth();
+
+            if (expectedDepth == -1)
+                expectedDepth = currentDepth;
+            else if (expectedDepth != currentDepth)
+                throw std::runtime_error("Array nesting has to be consistent");
+        }
+
+        return expectedDepth + 1;
+    }
+    else
+        return 0;
+}
+
+Value Value::getCardinality() const {
+    return std::visit(overloaded{
+            [](const std::shared_ptr<ArrayType>& arr) {
+                int size = arr->size();
+                return Value(size);
+            },
+            [](const std::string& str) {
+                int size = str.size();
+                return Value(size);
+            },
+            [](auto val) -> Value {
+                throw std::runtime_error("Cardinality can be only used with string or array types");
+            }
+        }, m_data);
+}
+
+Value Value::negateNum() const {
+    auto num = this->asNumber();
+    return std::visit( [](auto&& val) { return Value(-val); }, num);
+}
+
+Value Value::logicalAnd(const Value& other) const {
+    bool leftFactor = this->asBool();
+    bool rightFactor = other.asBool();
+
+    return Value(leftFactor && rightFactor);
+}
+
+Value Value::logicalOr(const Value& other) const {
+    bool leftFactor = this->asBool();
+    bool rightFactor = other.asBool();
+
+    return Value(leftFactor || rightFactor);
+}
+
+Value Value::logicalNot() const {
+    return Value(!this->asBool()); 
+}
+
+int Value::getIndex() const {
+    auto* idxPtr = std::get_if<int>(&m_data);
+    if (!idxPtr)
+        throw std::runtime_error("Indexes have to be of type int");
+
+    return *idxPtr;
+}
+
+Value Value::operator[](const Value& other) const {
+    int idx = other.getIndex();
+
+    return std::visit(overloaded{
+        [idx](const std::shared_ptr<ArrayType>& arr) -> Value {
+            try {
+                return arr->at(idx);
+            } catch (const std::out_of_range& e) {
+                throw std::runtime_error("Index is out of range");
+            }
+        },
+
+        [idx](const std::string& str) -> Value {
+            try {
+                char letter = str.at(idx);
+                return Value(std::string(1, letter));
+            } catch (const std::out_of_range& e) {
+                throw std::runtime_error("Index is out of range");
+            }
+        },
+
+        [idx](int num) -> Value { return Value(std::to_string(num))[Value(idx)]; },
+        [idx](double num) -> Value { return Value(std::to_string(num))[Value(idx)]; },
+
+        [](auto&&) -> Value {
+            throw std::runtime_error("This type cannot be indexed");
+        } 
+
+    }, m_data);
+}
+
+Value Value::concatenate(const Value& other) const {
+    return std::visit(overloaded{
+        [](const std::shared_ptr<ArrayType>& arrL,
+                const std::shared_ptr<ArrayType>& arrR) {
+            auto concatenated = std::make_shared<ArrayType>();
+            concatenated->reserve(arrL->size() + arrR->size());
+
+            concatenated->insert(concatenated->end(), arrL->begin(), arrL->end());
+            concatenated->insert(concatenated->end(), arrR->begin(), arrR->end());
+
+            return Value(std::move(concatenated));
+        },
+
+        [&](auto, auto) {
+            return Value(this->asStr() + other.asStr());
+        }
+    }, m_data, other.m_data);
+}
+
+Value Value::split(const Value& other) const {
+    int idx = other.getIndex();
+
+    return std::visit(overloaded{
+        [idx](const std::shared_ptr<ArrayType>& arr) {
+            if (idx >= arr->size())
+                throw std::runtime_error("Index is out of range");
+                
+            auto tail = std::make_shared<ArrayType>(
+                    arr->begin() + idx, arr->end()
+                    );
+
+            return Value(std::move(tail)); 
+        },
+
+        [idx](const std::string& str) {
+            if (idx >= str.size())
+                throw std::runtime_error("Index is out of range");
+
+            auto tail = std::string(
+                    str.begin() + idx, str.end()
+                    );
+            return Value(std::move(tail));
+        },
+
+        [&](auto&&) {
+            return Value(this->asStr()).split(other);
+        }
+
+    }, m_data);
+}
+
+Value Value::intersection(const Value& other) const {
+    return std::visit(overloaded{
+        [](const std::string& left, std::string right) {
+            std::string result;
+            for (char letter : left) {
+                auto letterIdx = right.find(letter);
+                if (letterIdx != std::string::npos) {
+                    result.push_back(letter); 
+                    right.erase(letterIdx, 1);
+                }
+            }
+            
+            return Value(std::move(result));
+        },
+
+        [](const std::shared_ptr<ArrayType>& left, 
+                const std::shared_ptr<ArrayType>& r) {
+            auto right = *r;
+            auto result = std::make_shared<ArrayType>();
+            result->reserve(left->size());
+
+            for (const auto& element : *left) {
+                auto it = std::find_if(right.begin(), right.end(), 
+                        [&element](const Value& rightElem) {
+                        return std::get<bool>((element == rightElem).m_data);
+                });
+
+                if (it != right.end()) {
+                    result->push_back(element);
+                    right.erase(it);
+                }
+                
+            }
+            result->shrink_to_fit();
+
+            return Value(std::move(result));
+        },
+
+        [&](auto&&, auto&&) {
+            return Value(this->asStr()).intersection(Value(other.asStr()));
+        }
+
+    }, m_data, other.m_data);
+}
+
+Value Value::append(const Value& other) const {
+    return std::visit(overloaded{
+        [&](const std::shared_ptr<ArrayType>& arr) {
+            ArrayType rightArr{other};
+            Value rightVal = Value(std::make_shared<ArrayType>(rightArr));
+            return this->concatenate(rightVal);
+        },
+        [](auto&&) -> Value {
+            throw std::runtime_error("You can only append to arrays");
+        }
+    }, m_data);
+}
+
+Value Value::extract(const Value& other) {
+    int idx = other.getIndex();
+
+    return std::visit(overloaded{
+            [&](std::shared_ptr<ArrayType> arr) {
+                if (idx >= arr->size())
+                    throw std::runtime_error("Extract index is out of bounds");
+                Value popped = (*this)[other];
+                arr->erase(arr->begin() + idx);
+                return popped; 
+            },
+
+            [](auto&&) -> Value {
+                throw std::runtime_error("You can only extract from arrays");
+            }
+    }, m_data);
+}
+
+void Value::modifyString(int idx, char character) {
+
+    if (auto* strPtr = std::get_if<std::string>(&m_data)) {
+        try {
+            strPtr->at(idx) = character;
+        } catch (const std::out_of_range& e) {
+            throw std::runtime_error(std::format("Index is out of range (string has length {})", 
+                        strPtr->size()));
+        }
+    }
+    else
+        throw std::runtime_error("Value is not a string");
+}
+
+Value Value::matchType(TypeInfo typeInfo) {
+    Value value = std::move(castValue(typeInfo.type));
+    int targetDepth = typeInfo.arrayDepth;
+    int depth = value.getDepth();
+    if ( depth != targetDepth ) {
+        throw std::runtime_error(std::format("Array should be nested {} time(s); is nested {} time(s)",
+                targetDepth, depth));
+    }
+    return value; 
+}
+
+void Value::qualify() {
+    m_isConst = true;
+    std::visit(overloaded{
+        [](std::shared_ptr<ArrayType>& arr) {
+            for (auto& val : *arr)
+                val.qualify();
+        },
+        [](auto&&){}
+    }, m_data);
+}

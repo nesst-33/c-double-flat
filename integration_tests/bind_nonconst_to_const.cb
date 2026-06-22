@@ -1,0 +1,7 @@
+void func(int b) {
+
+    }
+
+print("This should throw an error: ")
+const int a = 4
+func(a)

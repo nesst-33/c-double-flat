@@ -1,7 +1,8 @@
 #ifndef _NODE_H
 #define _NODE_H
 
-#include <algorithm>
+#include <ostream>
+#include <sstream>
 #include <utility>
 #include <vector>
 #include <memory>
@@ -17,6 +18,45 @@ struct TypeInfo {
     BaseType type;
     bool isConst {};
     int arrayDepth {};
+
+    std::string toString() const {
+        std::ostringstream result{};
+        result << *this;
+        return result.str();
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, TypeInfo typeInfo) {
+        if (typeInfo.isConst)
+            os << "const ";
+        for (size_t i{}; i < typeInfo.arrayDepth; i++)
+            os << "arr ";
+        switch (typeInfo.type) {
+            case BaseType::INT:
+                os << "int";
+                break;
+            case BaseType::FLP:
+                os << "flp";
+                break;
+            case BaseType::STR:
+                os << "str";
+                break;
+            case BaseType::BOOL:
+                os << "bool";
+                break;
+            case BaseType::VOID:
+                os << "void";
+                break;
+        }
+        return os;
+    }
+
+    bool operator==(const TypeInfo& other) const {
+        return type == other.type && arrayDepth == other.arrayDepth;
+    }
+
+    bool operator!=(const TypeInfo& other) const {
+        return !(*this == other);
+    }
 };
 
 struct Parameter {
@@ -34,6 +74,8 @@ public:
 
 // EXPRESSIONS
 class Expression : public Node {
+public:
+    virtual Position getPosition() const = 0;
 };
 
 class AsExpr : public Expression {
@@ -45,7 +87,7 @@ public:
     void accept(Visitor& v) override;
     const auto& getCastedExpr() const { return m_castedExpr; }
     const BaseType& getType() const { return m_type; }
-    const Position& getAsPos() const { return m_asPos; }
+    Position getPosition() const override { return m_asPos; }
 private:
     std::unique_ptr<Expression> m_castedExpr;
     BaseType m_type;
@@ -63,7 +105,7 @@ public:
         , m_rightFactor(std::move(rightFactor)) {}
     const auto& getLeftFactor() const { return m_leftFactor; }
     const auto& getRightFactor() const { return m_rightFactor; }
-    const Position& getOperatorPos() const { return m_operatorPos; }
+    Position getPosition() const override { return m_operatorPos; }
 private:
     std::unique_ptr<Expression> m_leftFactor;
     Position m_operatorPos;
@@ -192,7 +234,7 @@ public:
     UnaryExpr(std::unique_ptr<Expression> factor, Position operatorPos)
         : m_factor(std::move(factor)), m_operatorPos(operatorPos) {} 
     const auto& getFactor() const { return m_factor; }
-    const Position& getOpPos() const { return m_operatorPos; }
+    Position getPosition() const override { return m_operatorPos; }
 private:
     std::unique_ptr<Expression> m_factor;
     Position m_operatorPos;
@@ -228,6 +270,7 @@ public:
     IntLit(int value, Position position) : m_value(value), m_position(position) {}
     void accept(Visitor &v) override; 
     int getValue() const { return m_value; }
+    Position getPosition() const override { return m_position; }
 private:
     int m_value;
     Position m_position;
@@ -238,7 +281,7 @@ public:
     StrLit(std::string value, Position position) : m_value(value), m_position(position) {}
     void accept(Visitor &v) override; 
     const std::string& getValue() const { return m_value; }
-    const Position getPosition() const { return m_position; }
+    Position getPosition() const override { return m_position; }
 private:
     std::string m_value;
     Position m_position;
@@ -249,7 +292,7 @@ public:
     FlpLit(double value, Position position) : m_value(value), m_position(position) {}
     void accept(Visitor &v) override; 
     const double getValue() const { return m_value; }
-    const Position getPosition() const { return m_position; }
+    Position getPosition() const override { return m_position; }
 private:
     double m_value;
     Position m_position;
@@ -260,7 +303,7 @@ public:
     BoolLit(bool value, Position position) : m_value(value), m_position(position) {}
     void accept(Visitor &v) override; 
     const bool getValue() const { return m_value; }
-    const Position getPosition() const { return m_position; }
+    Position getPosition() const override { return m_position; }
 private:
     bool m_value;
     Position m_position;
@@ -272,7 +315,7 @@ public:
         : m_values(std::move(values)), m_position(position) {}
     void accept(Visitor &v) override; 
     const auto& getValues() const { return m_values; }
-    const Position getPosition() const { return m_position; }
+    Position getPosition() const override { return m_position; }
 private:
     std::vector<std::unique_ptr<Expression>> m_values;
     Position m_position;
@@ -286,7 +329,7 @@ public:
     void accept(Visitor &v) override; 
     const std::string& getName() const { return m_name; }
     const auto& getArguments() const { return m_arguments; }
-    const Position getPosition() const { return m_position; }
+    Position getPosition() const override { return m_position; }
 private:
     std::string m_name;
     std::vector<std::unique_ptr<Expression>> m_arguments;
@@ -298,7 +341,7 @@ public:
     Identifier(std::string name, Position position) : m_name(name), m_position(position) {}
     void accept(Visitor &v) override; 
     const std::string& getName() const { return m_name; }
-    const Position getPosition() const { return m_position; }
+    Position getPosition() const override { return m_position; }
 private:
     std::string m_name;
     Position m_position;
@@ -308,7 +351,7 @@ private:
 class Statement : public Node {
 public:
     Statement(Position pos) : m_position(pos) {}
-    const Position getPosition() const { return m_position; }
+    Position getPosition() const { return m_position; }
 private:
     Position m_position;
 };

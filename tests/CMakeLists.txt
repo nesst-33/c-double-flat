@@ -23,6 +23,19 @@ target_link_libraries(
     ParserLib
 )
 
+add_executable(
+    value_tests
+    value_tests.cpp
+)
+
+target_link_libraries(
+    value_tests
+    GTest::gtest_main
+    InterpreterLib
+)
+
+
 include(GoogleTest)
 gtest_discover_tests(lexer_tests)
 gtest_discover_tests(parser_tests)
+gtest_discover_tests(value_tests)

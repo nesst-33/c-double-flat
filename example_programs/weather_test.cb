@@ -1,0 +1,45 @@
+const flp calibration_offset = 0.52
+const int max_iterations = 3
+
+void filter_noise(arr flp sensor_data) {
+    int i = 0
+    while (i < max_iterations) {
+        if (sensor_data[i] < 0.0) {
+            sensor_data[i] = 0.0
+        } else {
+            sensor_data[i] += calibration_offset
+        }
+        i += 1
+    }
+}
+
+int factorial(int n) {
+    if (n <= 1) {
+        return 1
+    }
+    
+    return n * factorial(n - 1)
+}
+
+int calculate_severity(int wind_speed, flp baseline) {
+    return (wind_speed * 2) + factorial(baseline as int)
+}
+
+str analyze_storm(arr arr flp matrix, arr int wind_speeds) {
+    filter_noise(matrix[0])
+    filter_noise(matrix[1])
+
+    arr int severities = wind_speeds[calculate_severity(_, 3.14)]
+    
+    if (severities[0] > 50 and matrix[0][0] >= 10.5) {
+        return "SEVERE WARNING: Evacuation Required"
+    } else {
+        return "ALL CLEAR: Weather is stable"
+    }
+}
+
+arr arr flp rain_matrix = [[-1.2, 5.4, 12.0], [0.0, -0.5, 8.8]]
+arr int raw_wind = [15, 22, 30]
+str final_status = analyze_storm(rain_matrix, raw_wind)
+
+print(final_status)

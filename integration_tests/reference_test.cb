@@ -1,0 +1,26 @@
+void func(int a) {
+    a = 10        
+}
+
+int a = 3
+print("a before calling func: " ~ a)
+func(a)
+print("a after calling func: " ~ a)
+
+void arrFunc(arr int a) {
+    a = [3, 2, 1]
+}
+
+arr int b = [1, 2, 3]
+print("")
+print("b before calling arrFunc: " ~ b)
+arrFunc(b)
+print("b after calling arrFunc: " ~ b)
+
+print("")
+print("Now there should be an error:")
+void badFunc(arr int c) {
+    c = 4
+}
+badFunc(b)
+

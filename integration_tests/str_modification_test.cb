@@ -1,0 +1,7 @@
+str b = "asdf"
+print("b before modification: " ~ b)
+b[0] = "z"
+print("b after modification: " ~ b)
+
+print("This should throw an error: ")
+b[0] = "abcd"

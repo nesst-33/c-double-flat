@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -19,16 +21,17 @@ public:
     }
 
     int getErrCount() const { return errors.size(); }
-
     const auto& getErrors() const { return errors; }
-
     void report(std::unique_ptr<LangError> error) {
         if (!error)
             throw std::runtime_error("Errors passed to the handler can't be nullptr");
 
         errors.push_back(std::move(error)); 
 
-        if (errors.back()->getSeverity() == Severity::ERROR)
+        if (auto* errPtr = dynamic_cast<LexerError*>(errors.back().get())) 
+            return;
+
+        if (errors.back()->getSeverity() != Severity::WARNING)
             errors.back()->raise();
     }
 private:

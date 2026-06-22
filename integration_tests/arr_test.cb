@@ -1,0 +1,50 @@
+int a = 4.5
+arr arr int b = [[3.2]]
+
+# b should be deeply copied into c, because the types diverge
+arr arr arr flp c = [b, [[a]]]
+print("c array before changing b: ")
+print(c)
+print("")
+
+b[0] = [5]
+print("c array after changing b: ")
+print(c)
+print("")
+
+print("--------------")
+
+arr int d = [1, 2]
+arr arr int e = [d, [3, 4]]
+print("e array before changing d: ")
+print(e)
+print("")
+
+d[0] = 3
+print("e array after changing d: ")
+print(e)
+print("")
+
+d = [3, 4]
+print("e array after assigning a new array literal to d: ")
+print(e)
+print("")
+
+print("--------------")
+
+arr arr int f = [[1,2], [3,4]]
+arr arr int g = [f[0], [5,6]]
+
+print("g array before changing f: ")
+print(g)
+print("")
+
+f[0][0] = 7
+
+print("g array after changing f: ")
+print(g)
+print("")
+
+f[0] = [7, 8]
+print("g array after assigning a new nested array to f: ")
+print(g)

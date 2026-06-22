@@ -1,0 +1,57 @@
+int partition(arr int numbers, int low, int high) {
+    int pivot = numbers[high]
+    
+    int i = low - 1
+    int j = low
+    
+    while (j < high) {
+        if (numbers[j] <= pivot) {
+            i += 1
+            
+            int temp = numbers[i]
+            numbers[i] = numbers[j]
+            numbers[j] = temp
+        }
+        
+        j += 1
+    }
+    
+    int temp_pivot = numbers[i + 1]
+    numbers[i + 1] = numbers[high]
+    numbers[high] = temp_pivot
+    
+    return i + 1
+}
+
+void quicksort_recursive(arr int numbers, int low, int high) {
+    if (low < high) {
+        
+        int pi = partition(numbers, low, high)
+        
+        quicksort_recursive(numbers, low, pi - 1)
+        
+        quicksort_recursive(numbers, pi + 1, high)
+    }
+}
+
+void sort(arr int numbers) {
+    int length = numbers!
+    
+    if (length > 1) {
+        quicksort_recursive(numbers, 0, length - 1)
+    }
+}
+
+
+arr int dataset = [10, 7, 8, 9, 1, 5, 14, 2, 0, 12]
+
+print("Before: ")
+print(dataset)
+
+sort(dataset)
+
+int min_val = dataset[0]
+int max_val = dataset[dataset! - 1]
+
+print("\nAfter:")
+print(dataset)

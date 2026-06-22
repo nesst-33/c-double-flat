@@ -1,0 +1,6 @@
+int test(const int a) {
+        a = 4
+    }
+
+print("This should throw an error: ")
+test(4)

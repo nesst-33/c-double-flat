@@ -116,7 +116,8 @@ private:
 
     void getToken() {
         currToken = m_lexer.getToken();
-        while (currToken.type == TokenType::COMMENT_T)
+        while (currToken.type == TokenType::COMMENT_T
+                || currToken.type == TokenType::UNKNOWN)
             currToken = m_lexer.getToken();
     }
 
